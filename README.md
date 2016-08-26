@@ -8,3 +8,7 @@ This currently only supports extracting NES and SNES roms. Note that most VC tit
 
 `WiiuVcExtractor WUP-FCSE.rpx "Mega Man 6.nes"`
 
+
+## Credits
+Extraction of rpx files is possible due to the following tool created by 0CBH0:
+https://github.com/0CBH0/wiiurpxtool
