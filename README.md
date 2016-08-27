@@ -9,6 +9,7 @@ This currently only supports extracting NES and SNES roms. Note that most VC tit
 `WiiuVcExtractor WUP-FCSE.rpx "Mega Man 6.nes"`
 
 ## Example Runs
+### NES Extraction
 ```
 WiiuVcExtractor WUP-FCSE.rpx "Mega Man 6.nes"
 Found wiiurpxtool.exe, decompressing the RPX file...
@@ -31,6 +32,7 @@ Writing NES rom data...
 NES rom has been created successfully at Mega Man 6.nes
 ```
 
+### SNES Extraction
 ```
 WiiuVcExtractor WUP-JAAE.rpx "Super Mario World.smc"
 Found wiiurpxtool.exe, decompressing the RPX file...
