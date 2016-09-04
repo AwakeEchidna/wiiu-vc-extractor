@@ -49,7 +49,9 @@ namespace WiiuVcExtractor.RomExtractors
 
         public SnesVcExtractor(string dumpPath, RpxFile rpxFile)
         {
-            snesDictionary = new RomNameDictionary(SNES_DICTIONARY_CSV_PATH);
+            string snesDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SNES_DICTIONARY_CSV_PATH);
+
+            snesDictionary = new RomNameDictionary(snesDictionaryPath);
             snesLoRomHeader = new byte[SNES_HEADER_LENGTH];
             snesHiRomHeader = new byte[SNES_HEADER_LENGTH];
             headerType = SnesHeaderType.NotDetermined;
