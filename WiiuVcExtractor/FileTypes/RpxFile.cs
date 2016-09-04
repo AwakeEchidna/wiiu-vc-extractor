@@ -1,0 +1,325 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+using System.IO;
+using Ionic.Zlib;
+
+using WiiuVcExtractor.Libraries;
+
+namespace WiiuVcExtractor.FileTypes
+{
+    public class RpxFile
+    {
+        RpxHeader header;
+        List<RpxSectionHeader> sectionHeaders;
+        List<RpxSectionHeaderSort> sectionHeaderIndices;
+        List<UInt32> crcs;
+        string path;
+        string decompressedPath;
+
+        UInt64 crcDataOffset;
+
+        public string Path { get { return path; } }
+        public string DecompressedPath { get { return decompressedPath; } }
+
+        public static bool IsRpx(string rpxFilePath)
+        {
+            RpxHeader header = new RpxHeader(rpxFilePath);
+            return header.IsValid();
+        }
+
+        public RpxFile(string rpxFilePath)
+        {
+            Console.WriteLine("Decompressing RPX file...");
+
+            path = rpxFilePath;
+            decompressedPath = path + ".extract";
+
+            // Remove the temp file if it exists
+            if (File.Exists(decompressedPath))
+            {
+                File.Delete(decompressedPath);
+            }
+
+            crcDataOffset = 0;
+
+            header = new RpxHeader(path);
+
+            using (FileStream fs = new FileStream(decompressedPath, FileMode.OpenOrCreate, FileAccess.Write))
+            {
+                using (BinaryWriter bw = new BinaryWriter(fs, new ASCIIEncoding()))
+                {
+                    bw.Write(header.Identity);
+                    BigEndianUtility.WriteUInt16BE(bw, header.Type);
+                    BigEndianUtility.WriteUInt16BE(bw, header.Machine);
+                    BigEndianUtility.WriteUInt32BE(bw, header.Version);
+                    BigEndianUtility.WriteUInt32BE(bw, header.EntryPoint);
+                    BigEndianUtility.WriteUInt32BE(bw, header.PhOffset);
+                    BigEndianUtility.WriteUInt32BE(bw, header.SectionHeaderOffset);
+                    BigEndianUtility.WriteUInt32BE(bw, header.Flags);
+                    BigEndianUtility.WriteUInt16BE(bw, header.EhSize);
+                    BigEndianUtility.WriteUInt16BE(bw, header.PhEntSize);
+                    BigEndianUtility.WriteUInt16BE(bw, header.PhNum);
+                    BigEndianUtility.WriteUInt16BE(bw, header.ShEntSize);
+                    BigEndianUtility.WriteUInt16BE(bw, header.SectionHeaderCount);
+                    BigEndianUtility.WriteUInt16BE(bw, header.ShStrIndex);
+
+                    BigEndianUtility.WriteUInt32BE(bw, 0x00000000);
+                    BigEndianUtility.WriteUInt32BE(bw, 0x00000000);
+                    BigEndianUtility.WriteUInt32BE(bw, 0x00000000);
+
+                    while ((ulong)bw.BaseStream.Position < header.SectionHeaderDataElfOffset)
+                    {
+                        bw.Write((byte)0);
+                    }
+
+                    while (bw.BaseStream.Position % 0x40 != 0)
+                    {
+                        bw.Write((byte)0);
+                        header.SectionHeaderDataElfOffset++;
+                    }
+                }
+            }
+
+            sectionHeaderIndices = new List<RpxSectionHeaderSort>();
+            sectionHeaders = new List<RpxSectionHeader>(header.SectionHeaderCount);
+            crcs = new List<uint>(header.SectionHeaderCount);
+
+            // TODO: Add debug flag with this output
+            //Console.WriteLine(header.ToString());
+
+            using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+            {
+                using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
+                {
+                    // Seek to the Section Header Offset in the file
+                    br.BaseStream.Seek(header.SectionHeaderOffset,SeekOrigin.Begin);
+
+                    // Read in all of the section headers
+                    for (UInt32 i = 0; i < header.SectionHeaderCount; i++)
+                    {
+                        crcs.Add(0);
+
+                        // Read in the bytes for the section header
+                        byte[] buffer = br.ReadBytes(RpxSectionHeader.SECTION_HEADER_LENGTH);
+
+                        // Create a new section header and add it to the list
+                        RpxSectionHeader newSectionHeader = new RpxSectionHeader(buffer);
+                        sectionHeaders.Add(newSectionHeader);
+
+                        if (newSectionHeader.Offset != 0)
+                        {
+                            RpxSectionHeaderSort sectionHeaderIndex = new RpxSectionHeaderSort();
+                            sectionHeaderIndex.index = i;
+                            sectionHeaderIndex.offset = newSectionHeader.Offset;
+                            sectionHeaderIndices.Add(sectionHeaderIndex);
+
+                            // TODO: Add debug flag with this output
+                            //Console.WriteLine(sectionHeaderIndex.ToString());
+                        }
+
+                        // TODO: Add debug flag with this output
+                        //Console.WriteLine(newSectionHeader.ToString());
+                    }
+                }
+            }
+
+            sectionHeaderIndices.Sort();
+
+            // Iterate through all of the section header indices
+            for (int i = 0; i < sectionHeaderIndices.Count; i++)
+            {
+                // Seek to the correct part of the file
+                RpxSectionHeader currentSectionHeader = sectionHeaders[(int)sectionHeaderIndices[i].index];
+                UInt64 position = currentSectionHeader.Offset;
+
+                using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+                {
+                    using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
+                    {
+                        br.BaseStream.Seek((long)position, SeekOrigin.Begin);
+
+                        currentSectionHeader.Offset = (uint)br.BaseStream.Position;
+
+                        if ((currentSectionHeader.Flags & RpxSectionHeader.SECTION_HEADER_RPL_ZLIB) == RpxSectionHeader.SECTION_HEADER_RPL_ZLIB)
+                        {
+                            UInt32 dataSize = currentSectionHeader.Size - 4;
+                            currentSectionHeader.Size = BigEndianUtility.ReadUInt32BE(br);
+                            UInt32 blockSize = RpxSectionHeader.CHUNK_SIZE;
+                            UInt32 have;
+                            byte[] bufferIn = new byte[RpxSectionHeader.CHUNK_SIZE];
+                            byte[] bufferOut = new byte[RpxSectionHeader.CHUNK_SIZE];
+
+                            ZlibCodec compressor = new ZlibCodec();
+                            compressor.InitializeInflate(true);
+                            compressor.AvailableBytesIn = 0;
+                            compressor.NextIn = 0;
+
+                            while (dataSize > 0)
+                            {
+                                blockSize = RpxSectionHeader.CHUNK_SIZE;
+                                if (dataSize < blockSize)
+                                {
+                                    blockSize = dataSize;
+                                }
+
+                                dataSize -= blockSize;
+
+                                bufferIn = br.ReadBytes((int)blockSize);
+                                compressor.NextIn = 0;
+                                compressor.InputBuffer = bufferIn;
+                                compressor.AvailableBytesIn = bufferIn.Length;
+                                compressor.OutputBuffer = bufferOut;
+
+                                do
+                                {
+                                    compressor.AvailableBytesOut = (int)RpxSectionHeader.CHUNK_SIZE;
+                                    compressor.NextOut = 0;
+                                    compressor.Inflate(FlushType.None);
+
+                                    have = RpxSectionHeader.CHUNK_SIZE - (uint)compressor.AvailableBytesOut;
+
+                                    // write the data
+                                    using (FileStream outFs = new FileStream(decompressedPath, FileMode.Append))
+                                    {
+                                        using (BinaryWriter bw = new BinaryWriter(outFs, new ASCIIEncoding()))
+                                        {
+                                            bw.Write(bufferOut, 0, (int)have);
+                                        }
+                                    }
+
+                                    crcs[(int)sectionHeaderIndices[i].index] = Crc32Rpx(crcs[(int)sectionHeaderIndices[i].index], bufferOut, have);
+                                } while (compressor.AvailableBytesOut == 0);
+
+                                currentSectionHeader.Flags &= ~RpxSectionHeader.SECTION_HEADER_RPL_ZLIB;
+                            }
+                        }
+                        else
+                        {
+                            UInt32 dataSize = currentSectionHeader.Size;
+                            UInt32 blockSize = RpxSectionHeader.CHUNK_SIZE;
+
+                            while (dataSize > 0)
+                            {
+                                byte[] data = new byte[RpxSectionHeader.CHUNK_SIZE];
+                                blockSize = RpxSectionHeader.CHUNK_SIZE;
+
+                                if (dataSize < blockSize)
+                                {
+                                    blockSize = dataSize;
+                                }
+
+                                dataSize -= blockSize;
+
+                                data = br.ReadBytes((int)blockSize);
+
+                                // Write out the section bytes
+                                using (FileStream outFs = new FileStream(decompressedPath, FileMode.Append))
+                                {
+                                    using (BinaryWriter bw = new BinaryWriter(outFs, new ASCIIEncoding()))
+                                    {
+                                        bw.Write(data);
+                                    }
+                                }
+
+                                crcs[(int)sectionHeaderIndices[i].index] = Crc32Rpx(crcs[(int)sectionHeaderIndices[i].index], data, blockSize);
+                            }
+                        }
+
+                        // Pad out the section on a 0x40 byte boundary
+                        using (FileStream outFs = new FileStream(decompressedPath, FileMode.Append))
+                        {
+                            using (BinaryWriter bw = new BinaryWriter(outFs, new ASCIIEncoding()))
+                            {
+                                while(bw.BaseStream.Position % 0x40 != 0)
+                                {
+                                    bw.Write((byte)0);
+                                }
+                            }
+                        }
+
+                        if ((currentSectionHeader.Type & RpxSectionHeader.SECTION_HEADER_RPL_CRCS) == RpxSectionHeader.SECTION_HEADER_RPL_CRCS)
+                        {
+                            crcs[(int)sectionHeaderIndices[i].index] = 0;
+                            crcDataOffset = currentSectionHeader.Offset;
+                        }
+                    }
+                }
+
+                sectionHeaders[(int)sectionHeaderIndices[i].index] = currentSectionHeader;
+            }
+
+            // Fix the output headers
+            // TODO: This is not currently accurate vs. wiiurpx tool so may need to investigate
+            using (FileStream outFs = new FileStream(decompressedPath, FileMode.Open, FileAccess.Write))
+            {
+                using (BinaryWriter bw = new BinaryWriter(outFs, new ASCIIEncoding()))
+                {
+                    bw.Seek((int)header.SectionHeaderOffset, SeekOrigin.Begin);
+
+                    for (UInt32 i = 0; i < header.SectionHeaderCount; i++)
+                    {
+                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Name);
+                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Type);
+                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Flags);
+                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Address);
+                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Offset);
+                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Size);
+                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Link);
+                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Info);
+                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].AddrAlign);
+                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].EntSize);
+                    }
+
+                    using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+                    {
+                        using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
+                        {
+                            // Seek to the Section Header Offset in the file
+                            br.BaseStream.Seek((long)crcDataOffset, SeekOrigin.Begin);
+
+                            for (UInt32 i = 0; i < header.SectionHeaderCount; i++)
+                            {
+                                BigEndianUtility.WriteUInt32BE(bw, crcs[(int)i]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            Console.WriteLine("Decompression complete.");
+        }
+
+        ~RpxFile()
+        {
+            // Attempt to clean up the decompressed file if it exists
+            if (File.Exists(decompressedPath))
+            {
+                File.Delete(decompressedPath);
+            }
+        }
+
+        UInt32 Crc32Rpx(UInt32 crc, byte[] buffer, UInt32 len)
+        {
+            UInt32[] crcTable = new UInt32[256];
+            for (UInt32 i = 0; i < 256; i++)
+            {
+                UInt32 c = i;
+
+                for (UInt32 j = 0; j < 8; j++)
+                {
+
+                    if ((c & 1) == 1)
+                        c = (UInt32)0xedb88320L ^ (c >> 1);
+                    else
+                        c = c >> 1;
+                }
+                crcTable[i] = c;
+            }
+            crc = ~crc;
+            for (UInt32 i = 0; i < len; i++)
+                crc = (crc >> 8) ^ crcTable[(crc ^ buffer[i]) & 0xff];
+            return ~crc;
+        }
+    }
+}

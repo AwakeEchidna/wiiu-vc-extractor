@@ -1,59 +1,93 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using WiiuVcExtractor.RomExtractors;
+using WiiuVcExtractor.FileTypes;
 
 namespace WiiuVcExtractor
 {
     class Program
     {
+        static void PrintUsage()
+        {
+            Console.WriteLine("===============================");
+            Console.WriteLine("Wii U Virtual Console Extractor");
+            Console.WriteLine("===============================");
+            Console.WriteLine("Extracts roms from Virtual Console games dumped by DDD.");
+            Console.WriteLine("");
+            Console.WriteLine("Usage:");
+            Console.WriteLine("wiiuvcextractor [rpx_or_psb.m_file]");
+            Console.WriteLine("");
+            Console.WriteLine("Usage Examples:");
+            Console.WriteLine("wiiuvcextractor alldata.psb.m");
+            Console.WriteLine("wiiuvcextractor WUP-FAME.rpx");
+
+        }
+
         static void Main(string[] args)
         {
-            if (args.Length != 2)
+            if (args.Length != 1)
             {
-                Console.WriteLine("Please provide the source rpx file and the destination rom name.");
+                PrintUsage();
                 return;
             }
 
-            string rpxPath = args[0];
-            string destinationPath = args[1];
+            string sourcePath = args[0];
 
-            if (!File.Exists(rpxPath))
+            if (!File.Exists(sourcePath))
             {
-                Console.WriteLine("Could not find RPX file at " + rpxPath + ". Please ensure that your filename is correct.");
+                Console.WriteLine("Could not find source file at " + sourcePath + ". Please ensure that your filename is correct.");
                 return;
             }
 
-            // Attempt to decompress the RPX file using wiiurpxtool
-            if (!File.Exists("wiiurpxtool.exe"))
+            Console.WriteLine("============================================================================");
+            Console.WriteLine("Starting extraction of rom from " + sourcePath + "...");
+            Console.WriteLine("============================================================================");
+
+            string extractedRomPath = "";
+
+            // Attempt to create the RPX file
+            RpxFile rpxFile = null;
+            if (RpxFile.IsRpx(sourcePath))
             {
-                Console.WriteLine("Could not find wiiurpxtool.exe. Please ensure that it is in your working directory.");
-                return;
+                Console.WriteLine("RPX file detected!");
+                rpxFile = new RpxFile(sourcePath);
             }
 
-            Console.WriteLine("Found wiiurpxtool.exe, decompressing the RPX file...");
 
-            System.Diagnostics.Process extractProcess = System.Diagnostics.Process.Start("wiiurpxtool.exe", "-d " + rpxPath );
 
-            // Wait for extraction to complete...
-            while (extractProcess.HasExited == false)
+            // Create the list of rom extractors
+            List<IRomExtractor> romExtractors = new List<IRomExtractor>();
+
+            if (rpxFile != null)
             {
-                System.Threading.Thread.Sleep(500);
+                romExtractors.Add(new NesVcExtractor(sourcePath, rpxFile));
+                romExtractors.Add(new SnesVcExtractor(sourcePath, rpxFile));
             }
 
-            // TODO: Add a check to determine what kind of ROM it is prior to starting up the extractor
-            RomPlatformIdentifier romIdentifier = new RomPlatformIdentifier();
-            RomPlatform platform = romIdentifier.identifyRom(rpxPath);
-
-            switch (platform)
+            foreach (var romExtractor in romExtractors)
             {
-                case RomPlatform.NES:
-                    NesVcExtractor nesExtract = new NesVcExtractor();
-                    nesExtract.extractRomFromVcDump(rpxPath, destinationPath);
+                if (romExtractor.IsValidRom())
+                {
+                    extractedRomPath = romExtractor.ExtractRom();
                     break;
-                case RomPlatform.SNES:
-                    SnesVcExtractor snesExtract = new SnesVcExtractor();
-                    snesExtract.extractRomFromVcDump(rpxPath, destinationPath);
-                    break;
+                }
             }
+
+            if (!String.IsNullOrEmpty(extractedRomPath))
+            {
+                Console.WriteLine("============================================================================");
+                Console.WriteLine(sourcePath + " has been extracted to " + extractedRomPath + " successfully.");
+                Console.WriteLine("============================================================================");
+            }
+            else
+            {
+                Console.WriteLine("============================================================================");
+                Console.WriteLine("FAILURE: Could not successfully identify the rom type for " + sourcePath);
+                Console.WriteLine("============================================================================");
+            }
+
+            
         }
     }
 }
