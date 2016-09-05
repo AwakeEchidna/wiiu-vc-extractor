@@ -68,3 +68,6 @@ WUP-JA7E.rpx has been extracted to Pilotwings.smc successfully.
 ## Credits
 Decompression of rpx files is possible due to the following tool created by 0CBH0:
 https://github.com/0CBH0/wiiurpxtool
+
+The upcoming GBA support will be possible due to research and code performed by ajd4096:
+https://github.com/ajd4096/inject_gba
