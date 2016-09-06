@@ -58,19 +58,19 @@ namespace WiiuVcExtractor.FileTypes
                 {
                     // Read in the header
                     identity = br.ReadBytes(ELF_SIGNATURE_LENGTH);
-                    type = BigEndianUtility.ReadUInt16BE(br);
-                    machine = BigEndianUtility.ReadUInt16BE(br);
-                    version = BigEndianUtility.ReadUInt32BE(br);
-                    entryPoint = BigEndianUtility.ReadUInt32BE(br);
-                    phOffset = BigEndianUtility.ReadUInt32BE(br);
-                    shOffset = BigEndianUtility.ReadUInt32BE(br);
-                    flags = BigEndianUtility.ReadUInt32BE(br);
-                    ehSize = BigEndianUtility.ReadUInt16BE(br);
-                    phEntSize = BigEndianUtility.ReadUInt16BE(br);
-                    phNum = BigEndianUtility.ReadUInt16BE(br);
-                    shEntSize = BigEndianUtility.ReadUInt16BE(br);
-                    shNum = BigEndianUtility.ReadUInt16BE(br);
-                    shStrIndex = BigEndianUtility.ReadUInt16BE(br);
+                    type = EndianUtility.ReadUInt16BE(br);
+                    machine = EndianUtility.ReadUInt16BE(br);
+                    version = EndianUtility.ReadUInt32BE(br);
+                    entryPoint = EndianUtility.ReadUInt32BE(br);
+                    phOffset = EndianUtility.ReadUInt32BE(br);
+                    shOffset = EndianUtility.ReadUInt32BE(br);
+                    flags = EndianUtility.ReadUInt32BE(br);
+                    ehSize = EndianUtility.ReadUInt16BE(br);
+                    phEntSize = EndianUtility.ReadUInt16BE(br);
+                    phNum = EndianUtility.ReadUInt16BE(br);
+                    shEntSize = EndianUtility.ReadUInt16BE(br);
+                    shNum = EndianUtility.ReadUInt16BE(br);
+                    shStrIndex = EndianUtility.ReadUInt16BE(br);
                 }
             }
 
@@ -99,8 +99,6 @@ namespace WiiuVcExtractor.FileTypes
 
         public override string ToString()
         {
-           
-
             return "RpxHeader:\n" +
                    "identity: " + BitConverter.ToString(identity) + "\n" +
                    "type: " + type.ToString() + "\n" +

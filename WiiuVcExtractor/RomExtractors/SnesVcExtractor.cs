@@ -141,7 +141,6 @@ namespace WiiuVcExtractor.RomExtractors
             // First check if this is a valid ELF file:
             if (rpxFile != null)
             {
-                // Create the Rpx File
                 Console.WriteLine("Checking " + rpxFile.DecompressedPath + "...");
                 if (!File.Exists(rpxFile.DecompressedPath))
                 {

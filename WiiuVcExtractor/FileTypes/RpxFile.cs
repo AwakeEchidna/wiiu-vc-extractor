@@ -50,23 +50,23 @@ namespace WiiuVcExtractor.FileTypes
                 using (BinaryWriter bw = new BinaryWriter(fs, new ASCIIEncoding()))
                 {
                     bw.Write(header.Identity);
-                    BigEndianUtility.WriteUInt16BE(bw, header.Type);
-                    BigEndianUtility.WriteUInt16BE(bw, header.Machine);
-                    BigEndianUtility.WriteUInt32BE(bw, header.Version);
-                    BigEndianUtility.WriteUInt32BE(bw, header.EntryPoint);
-                    BigEndianUtility.WriteUInt32BE(bw, header.PhOffset);
-                    BigEndianUtility.WriteUInt32BE(bw, header.SectionHeaderOffset);
-                    BigEndianUtility.WriteUInt32BE(bw, header.Flags);
-                    BigEndianUtility.WriteUInt16BE(bw, header.EhSize);
-                    BigEndianUtility.WriteUInt16BE(bw, header.PhEntSize);
-                    BigEndianUtility.WriteUInt16BE(bw, header.PhNum);
-                    BigEndianUtility.WriteUInt16BE(bw, header.ShEntSize);
-                    BigEndianUtility.WriteUInt16BE(bw, header.SectionHeaderCount);
-                    BigEndianUtility.WriteUInt16BE(bw, header.ShStrIndex);
+                    EndianUtility.WriteUInt16BE(bw, header.Type);
+                    EndianUtility.WriteUInt16BE(bw, header.Machine);
+                    EndianUtility.WriteUInt32BE(bw, header.Version);
+                    EndianUtility.WriteUInt32BE(bw, header.EntryPoint);
+                    EndianUtility.WriteUInt32BE(bw, header.PhOffset);
+                    EndianUtility.WriteUInt32BE(bw, header.SectionHeaderOffset);
+                    EndianUtility.WriteUInt32BE(bw, header.Flags);
+                    EndianUtility.WriteUInt16BE(bw, header.EhSize);
+                    EndianUtility.WriteUInt16BE(bw, header.PhEntSize);
+                    EndianUtility.WriteUInt16BE(bw, header.PhNum);
+                    EndianUtility.WriteUInt16BE(bw, header.ShEntSize);
+                    EndianUtility.WriteUInt16BE(bw, header.SectionHeaderCount);
+                    EndianUtility.WriteUInt16BE(bw, header.ShStrIndex);
 
-                    BigEndianUtility.WriteUInt32BE(bw, 0x00000000);
-                    BigEndianUtility.WriteUInt32BE(bw, 0x00000000);
-                    BigEndianUtility.WriteUInt32BE(bw, 0x00000000);
+                    EndianUtility.WriteUInt32BE(bw, 0x00000000);
+                    EndianUtility.WriteUInt32BE(bw, 0x00000000);
+                    EndianUtility.WriteUInt32BE(bw, 0x00000000);
 
                     while ((ulong)bw.BaseStream.Position < header.SectionHeaderDataElfOffset)
                     {
@@ -144,7 +144,7 @@ namespace WiiuVcExtractor.FileTypes
                         if ((currentSectionHeader.Flags & RpxSectionHeader.SECTION_HEADER_RPL_ZLIB) == RpxSectionHeader.SECTION_HEADER_RPL_ZLIB)
                         {
                             UInt32 dataSize = currentSectionHeader.Size - 4;
-                            currentSectionHeader.Size = BigEndianUtility.ReadUInt32BE(br);
+                            currentSectionHeader.Size = EndianUtility.ReadUInt32BE(br);
                             UInt32 blockSize = RpxSectionHeader.CHUNK_SIZE;
                             UInt32 have;
                             byte[] bufferIn = new byte[RpxSectionHeader.CHUNK_SIZE];
@@ -259,16 +259,16 @@ namespace WiiuVcExtractor.FileTypes
 
                     for (UInt32 i = 0; i < header.SectionHeaderCount; i++)
                     {
-                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Name);
-                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Type);
-                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Flags);
-                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Address);
-                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Offset);
-                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Size);
-                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Link);
-                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Info);
-                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].AddrAlign);
-                        BigEndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].EntSize);
+                        EndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Name);
+                        EndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Type);
+                        EndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Flags);
+                        EndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Address);
+                        EndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Offset);
+                        EndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Size);
+                        EndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Link);
+                        EndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].Info);
+                        EndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].AddrAlign);
+                        EndianUtility.WriteUInt32BE(bw, sectionHeaders[(int)i].EntSize);
                     }
 
                     using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
@@ -280,7 +280,7 @@ namespace WiiuVcExtractor.FileTypes
 
                             for (UInt32 i = 0; i < header.SectionHeaderCount; i++)
                             {
-                                BigEndianUtility.WriteUInt32BE(bw, crcs[(int)i]);
+                                EndianUtility.WriteUInt32BE(bw, crcs[(int)i]);
                             }
                         }
                     }
