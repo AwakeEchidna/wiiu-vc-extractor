@@ -4,174 +4,241 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
-using System.IO.Compression;
-using System.Security.Cryptography;
-using Meisui.Random;
+using WiiuVcExtractor.Libraries;
 
-namespace WiiuVcExtractor
+namespace WiiuVcExtractor.FileTypes
 {
-    class PsbFile
+    public class PsbFile
     {
-        private const int MAX_READ_SIZE = 1024 * 1024 * 1024;
-        private const string FIXED_SEED = "MX8wgGEJ2+M47";
-        private const byte XOR_KEY_LENGTH = 0x50;
+        const string ROM_SUBFILE_PATH = "system/roms/";
 
-        private byte[] rawPsbData;
-        private byte[] xorKey;
-        private byte[] decryptedData;
+        MdfPsbFile compressedPsbFile;
+        PsbHeader header;
+        PsbNameTable nameTable;
+        PsbChunkTable chunkTable;
+        PsbEntryTable entryTable;
+        List<string> names;
+        List<string> strings;
+        List<byte[]> subfiles;
 
-        private string baseFileName;
-        private string fullPath;
+        string decompressedPath;
 
-        private CompressedPsbHeader compressedHeader;
-        private PsbHeader header;
+        private byte[] psbData;
+        private byte[] binData;
+        private byte[] romData;
+        private string romPath;
 
-        private string[] names;
-        private string[] strings;
-        private string[] chunkData;
-        private string[] chunkNames;
-        private string entries;
+        public string DecompressedPath { get { return decompressedPath; } }
 
-        public PsbFile(string path)
+        public static bool IsPsb(string psbFilePath)
         {
-            this.fullPath = path;
+            MdfHeader header = new MdfHeader(psbFilePath);
+            return header.IsValid();
+        }
 
-            // Verify the file exists
-            if (!File.Exists(path))
+        public PsbFile(string psbFilePath)
+        {
+            compressedPsbFile = new MdfPsbFile(psbFilePath);
+
+            // Get the psb data from the file decompressed by the MdfPsbFile
+            header = new PsbHeader(compressedPsbFile.DecompressedPath);
+            psbData = File.ReadAllBytes(compressedPsbFile.DecompressedPath);
+
+            names = new List<string>();
+            strings = new List<string>();
+
+            //Console.WriteLine(header.ToString());
+
+            // Unpack the structures of the file
+            UnpackNames();
+
+            UnpackStrings();
+
+            UnpackChunks();
+
+            UnpackEntries();
+
+            // Attempt to read in the alldata.bin file
+            string binPath = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(psbFilePath)) + ".bin";
+            Console.WriteLine("Checking for PSB data file " + binPath + "...");
+
+            if (!File.Exists(binPath))
             {
-                Console.WriteLine("Failed to find psb.m file at " + path);
-                return;
+                throw new FileNotFoundException("Could not find PSB data file at " + binPath + ". Please ensure that your filename is correct.");
             }
 
-            this.baseFileName = Path.GetFileName(path);
-            Console.WriteLine("The baseFileName is " + baseFileName);
+            binData = File.ReadAllBytes(binPath);
+            subfiles = new List<byte[]>();
 
-            // Read in the PSB's data from the path
-            using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+            SplitSubfiles();
+
+            if (romData != null && !String.IsNullOrEmpty(romPath))
             {
-                using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
-                {
-                    Console.WriteLine("Getting Compressed PSB data from " + path + "...");
+                Console.WriteLine("Decompressing rom...");
 
-                    rawPsbData = br.ReadBytes(MAX_READ_SIZE);
+                // Remove the temp file if it exists
+                if (File.Exists(romPath))
+                {
+                    File.Delete(romPath);
                 }
-            }
 
-            // Get the header from the raw PSB data
-            compressedHeader = new CompressedPsbHeader(rawPsbData);
+                File.WriteAllBytes(romPath, romData);
 
-            Console.WriteLine("Compressed PSB Header Info: " + Environment.NewLine + compressedHeader.ToString());
+                MdfPsbFile romMdfFile = new MdfPsbFile(romPath);
 
-            if (!compressedHeader.Valid())
-            {
-                Console.WriteLine("The Compressed PSB Header is not valid.");
-                return;
-            }
-            else
-            {
-                Console.WriteLine("The Compressed PSB Header is valid.");
-            }
-
-            xorKey = GenerateXorKey(this.baseFileName);
-
-            DecryptData();
-
-            Console.WriteLine("Data has been decrypted");
-
-            byte[] uncompressedData = UncompressData();
-
-            Console.WriteLine("Data is uncompressed");
-
-            header = new PsbHeader(uncompressedData);
-            Console.WriteLine("PSB Header Info: " + Environment.NewLine + header.ToString());
-
-            if (!header.Valid())
-            {
-                Console.WriteLine("The PSB Header is not valid.");
-                return;
-            }
-            else
-            {
-                Console.WriteLine("The PSB Header is valid.");
-            }
-
-            
-        }
-
-        private byte[] GenerateXorKey(string baseFilename)
-        {
-            byte[] fixedSeed = Encoding.ASCII.GetBytes(FIXED_SEED);
-
-            byte[] fileNameAsBytes = Encoding.ASCII.GetBytes(baseFilename);
-
-            int hashSeedLength = fixedSeed.Length + fileNameAsBytes.Length;
-            byte[] hashSeed = new byte[hashSeedLength];
-
-            Array.Copy(fixedSeed, hashSeed, fixedSeed.Length);
-            Array.Copy(fileNameAsBytes, 0, hashSeed, fixedSeed.Length, fileNameAsBytes.Length);
-
-            byte[] hashAsBytes = { };
-
-            using (MD5 md5Hash = MD5.Create())
-            {
-                hashAsBytes = md5Hash.ComputeHash(hashSeed);
-            }
-
-            UInt32[] hashAsUint32 = new UInt32[4];
-
-            for (int i = 0; i < 4; i++)
-            {
-                hashAsUint32[i] = BitConverter.ToUInt32(hashAsBytes, i * 4);
-            }
-             //= BitConverter.ToUInt32(hashAsBytes, 0);
-
-            MersenneTwister mt19937 = new MersenneTwister(hashAsUint32);
-
-            byte[] keyBuffer = new byte[XOR_KEY_LENGTH];
-
-            for (int i = 0; i < XOR_KEY_LENGTH / 4; i++)
-            {
-                UInt32 buffer = mt19937.genrand_Int32();
-
-                Array.Copy(BitConverter.GetBytes(buffer), 0, keyBuffer, i * 4, 4);
-            }
-
-            Console.WriteLine("Using key: " + BitConverter.ToString(keyBuffer));
-            return keyBuffer;
-        }
-
-        private void DecryptData()
-        {
-            // Copy the PSB data into decryptedData
-            decryptedData = new byte[rawPsbData.Length];
-            Array.Copy(rawPsbData, decryptedData, rawPsbData.Length);
-
-            // Iterate through the data and XOR the key to decrypt it
-            for (int i = 0; i < decryptedData.Length - CompressedPsbHeader.HEADER_SIZE; i++)
-            {
-                decryptedData[i + CompressedPsbHeader.HEADER_SIZE] ^= xorKey[i % XOR_KEY_LENGTH];
+                decompressedPath = romMdfFile.DecompressedPath;
             }
         }
 
-        private byte[] UncompressData()
+        ~PsbFile()
         {
-            byte[] data = new byte[decryptedData.Length - CompressedPsbHeader.HEADER_SIZE];
-            Array.Copy(decryptedData, CompressedPsbHeader.HEADER_SIZE, data, 0, decryptedData.Length - CompressedPsbHeader.HEADER_SIZE);
-
-            using (MemoryStream compressedStream = new MemoryStream(data))
+            // Cleanup
+            if (File.Exists(romPath))
             {
-                compressedStream.ReadByte();
-                compressedStream.ReadByte();
+                File.Delete(romPath);
+            }
+        }
 
-                using (DeflateStream deflateStream = new DeflateStream(compressedStream, CompressionMode.Decompress))
+        private void UnpackNames()
+        {
+            nameTable = new PsbNameTable(psbData, header.NamesOffset);
+
+            string nameBuffer = "";
+            for (int i = 0; i < nameTable.Starts.Count; i++)
+            {
+                nameBuffer = nameTable.GetName(i);
+                names.Add(nameBuffer);
+            }
+        }
+
+        private void UnpackStrings()
+        {
+            using (MemoryStream ms = new MemoryStream(psbData))
+            {
+                using (BinaryReader br = new BinaryReader(ms, new ASCIIEncoding()))
                 {
-                    using (MemoryStream resultStream = new MemoryStream())
+                    br.BaseStream.Seek(header.StringsOffset, SeekOrigin.Begin);
+
+                    List<UInt32> stringValueList = new List<uint>();
+
+                    // get the offset information
+                    byte type = br.ReadByte();
+
+                    // Get the size of each object in bytes            
+                    int countByteSize = type - 12;
+                    uint count = 0;
+
+                    if (countByteSize == 1)
                     {
-                        deflateStream.CopyTo(resultStream);
-                        return resultStream.ToArray();
+                        count = br.ReadByte();
+                    }
+                    else if (countByteSize == 2)
+                    {
+                        count = br.ReadUInt16LE();
+                    }
+                    else if (countByteSize == 4)
+                    {
+                        count = br.ReadUInt32LE();
+                    }
+
+                    byte entrySizeType = br.ReadByte();
+                    int entryByteSize = entrySizeType - 12;
+
+                    UInt32 value = 0;
+
+                    // Read in the string offset values
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (entryByteSize == 1)
+                        {
+                            value = br.ReadByte();
+                        }
+                        else if (entryByteSize == 2)
+                        {
+                            value = br.ReadUInt16LE();
+                        }
+                        else if (entryByteSize == 4)
+                        {
+                            value = br.ReadUInt32LE();
+                        }
+
+                        stringValueList.Add(value);
+                    }
+
+                    // Get the strings
+                    for (int i = 0; i < stringValueList.Count; i++)
+                    {
+                        UInt32 specificStringOffset = stringValueList[i];
+
+                        br.BaseStream.Seek(header.StringsDataOffset + specificStringOffset, SeekOrigin.Begin);
+
+                        string stringData = br.ReadNullTerminatedString();
+
+                        strings.Add(stringData);
                     }
                 }
             }
+        }
+
+        private void UnpackChunks()
+        {
+            chunkTable = new PsbChunkTable(psbData, header.ChunkOffsetsOffset, header.ChunkLengthsOffset, header.ChunkDataOffset);
+        }
+
+        private void UnpackEntries()
+        {
+            entryTable = new PsbEntryTable(psbData, header.EntriesOffset, names, strings);
+        }
+
+        private void SplitSubfiles()
+        {
+            using (MemoryStream ms = new MemoryStream(binData))
+            {
+                using (BinaryReader br = new BinaryReader(ms, new ASCIIEncoding()))
+                {
+                    // Iterate through the file info table and read in the subfiles
+                    for (int i = 0; i < entryTable.FileInfoEntries.Count; i++)
+                    {
+                        string subfileName = names[(int)entryTable.FileInfoEntries[i].NameIndex];
+                        uint offset = entryTable.FileInfoEntries[i].Offset;
+                        uint length = entryTable.FileInfoEntries[i].Length;
+
+                        ms.Seek(offset, SeekOrigin.Begin);
+                        byte[] buffer = br.ReadBytes((int)length);
+
+                        // Check if this is the rom subfile
+                        if (subfileName.Contains(ROM_SUBFILE_PATH))
+                        {
+                            romData = buffer;
+                            romPath = Path.GetFileName(subfileName).ToLower();
+                            Console.WriteLine("Found rom subfile at " + romPath);
+                            Console.WriteLine("    Offset: " + offset);
+                            Console.WriteLine("    Length: " + length);
+                        }
+
+                        subfiles.Add(buffer);
+                    }
+                }
+            }
+        }
+
+        public override string ToString()
+        {
+            string returnString = "";
+
+            returnString += "Files:" + Environment.NewLine;
+            for (int i = 0; i < names.Count; i++)
+            {
+                returnString += names[i] + Environment.NewLine;
+            }
+
+            returnString += Environment.NewLine + "Strings:" + Environment.NewLine;
+            for (int i = 0; i < strings.Count; i++)
+            {
+                returnString += strings[i] + Environment.NewLine;
+            }
+
+            return returnString;
         }
     }
 }

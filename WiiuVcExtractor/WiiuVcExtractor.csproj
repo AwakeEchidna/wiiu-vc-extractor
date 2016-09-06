@@ -47,10 +47,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FileTypes\CompressedPsbHeader.cs" />
+    <Compile Include="FileTypes\MdfHeader.cs" />
+    <Compile Include="FileTypes\MdfPsbFile.cs" />
+    <Compile Include="FileTypes\PsbChunkTable.cs" />
+    <Compile Include="FileTypes\PsbEntryTable.cs" />
+    <Compile Include="FileTypes\PsbFile.cs" />
+    <Compile Include="FileTypes\PsbFileInfoEntry.cs" />
+    <Compile Include="FileTypes\PsbHeader.cs" />
+    <Compile Include="FileTypes\PsbNameTable.cs" />
     <Compile Include="FileTypes\RpxSectionHeader.cs" />
     <Compile Include="FileTypes\RpxSectionHeaderSort.cs" />
-    <Compile Include="Libraries\BigEndianUtility.cs" />
+    <Compile Include="Libraries\EndianUtility.cs" />
     <Compile Include="Libraries\RomNameDictionary.cs" />
     <Compile Include="RomExtractors\GbaVcExtractor.cs" />
     <Compile Include="RomExtractors\IRomExtractor.cs" />
@@ -58,8 +65,6 @@
     <Compile Include="RomExtractors\NesVcExtractor.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="FileTypes\PsbFile.cs" />
-    <Compile Include="FileTypes\PsbHeader.cs" />
     <Compile Include="RomExtractors\SnesVcExtractor.cs" />
     <Compile Include="FileTypes\RpxFile.cs" />
     <Compile Include="FileTypes\RpxHeader.cs" />
@@ -70,6 +75,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="snesromnames.csv">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="gbaromnames.csv">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

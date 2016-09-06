@@ -43,16 +43,16 @@ namespace WiiuVcExtractor.FileTypes
                 using (BinaryReader br = new BinaryReader(ms, new ASCIIEncoding()))
                 {
                     // Read in the header
-                    name = BigEndianUtility.ReadUInt32BE(br);
-                    type = BigEndianUtility.ReadUInt32BE(br);
-                    flags = BigEndianUtility.ReadUInt32BE(br);
-                    address = BigEndianUtility.ReadUInt32BE(br);
-                    offset = BigEndianUtility.ReadUInt32BE(br);
-                    size = BigEndianUtility.ReadUInt32BE(br);
-                    link = BigEndianUtility.ReadUInt32BE(br);
-                    info = BigEndianUtility.ReadUInt32BE(br);
-                    addrAlign = BigEndianUtility.ReadUInt32BE(br);
-                    entSize = BigEndianUtility.ReadUInt32BE(br);
+                    name = EndianUtility.ReadUInt32BE(br);
+                    type = EndianUtility.ReadUInt32BE(br);
+                    flags = EndianUtility.ReadUInt32BE(br);
+                    address = EndianUtility.ReadUInt32BE(br);
+                    offset = EndianUtility.ReadUInt32BE(br);
+                    size = EndianUtility.ReadUInt32BE(br);
+                    link = EndianUtility.ReadUInt32BE(br);
+                    info = EndianUtility.ReadUInt32BE(br);
+                    addrAlign = EndianUtility.ReadUInt32BE(br);
+                    entSize = EndianUtility.ReadUInt32BE(br);
                 }
             }
         }

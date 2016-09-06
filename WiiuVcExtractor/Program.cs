@@ -46,14 +46,19 @@ namespace WiiuVcExtractor
 
             string extractedRomPath = "";
 
-            // Attempt to create the RPX file
             RpxFile rpxFile = null;
+            PsbFile psbFile = null;
+
             if (RpxFile.IsRpx(sourcePath))
             {
                 Console.WriteLine("RPX file detected!");
                 rpxFile = new RpxFile(sourcePath);
             }
-
+            else if (PsbFile.IsPsb(sourcePath))
+            {
+                Console.WriteLine("PSB file detected!");
+                psbFile = new PsbFile(sourcePath);
+            }
 
 
             // Create the list of rom extractors
@@ -63,6 +68,10 @@ namespace WiiuVcExtractor
             {
                 romExtractors.Add(new NesVcExtractor(sourcePath, rpxFile));
                 romExtractors.Add(new SnesVcExtractor(sourcePath, rpxFile));
+            }
+            else if (psbFile != null)
+            {
+                romExtractors.Add(new GbaVcExtractor(sourcePath, psbFile));
             }
 
             foreach (var romExtractor in romExtractors)
