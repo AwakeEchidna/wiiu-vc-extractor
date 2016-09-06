@@ -14,6 +14,12 @@ This currently only supports extracting GBA, NES, and SNES roms. Note that most 
 2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases
 3. Extract it to your local computer
 
+### Mac
+1. Ensure that you have installed Mono (http://www.mono-project.com/docs/getting-started/install/)
+2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases
+3. Extract it to your local computer
+
+
 ## Basic Usage
 `WiiuVcExtractor <rpx_or_psb.m_file>`
 
