@@ -1,12 +1,38 @@
 # wiiu-vc-extractor
 Extracts Wii U Virtual Console roms from dumps created via DDD
 
-This currently only supports extracting NES and SNES roms. Note that most VC titles are not clean roms but have been modified from their original state.
+This currently only supports extracting GBA, NES, and SNES roms. Note that most VC titles are not clean roms but have been modified from their original state.
+
+## Installation
+### Windows
+1. Ensure that you have installed the .Net Framework version 4.5.2 or newer (https://msdn.microsoft.com/en-us/library/5a4x27ek(v=vs.110).aspx)
+2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases
+3. Extract it to your local computer
+
+### Linux
+1. Ensure that you have installed Mono (http://www.mono-project.com/docs/getting-started/install/)
+2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases
+3. Extract it to your local computer
 
 ## Basic Usage
-`WiiuVcExtractor <rpx_file>`
+`WiiuVcExtractor <rpx_or_psb.m_file>`
 
-`WiiuVcExtractor WUP-FCSE.rpx`
+```
+===============================
+Wii U Virtual Console Extractor
+===============================
+Extracts roms from Virtual Console games dumped by DDD.
+
+Usage:
+wiiuvcextractor [rpx_or_psb.m_file]
+
+Usage Examples:
+wiiuvcextractor alldata.psb.m
+wiiuvcextractor WUP-FAME.rpx
+```
+
+### Running under Mono
+`mono WiiuVcExtractor <rpx_or_psb.m_file>`
 
 ## Example Runs
 ### NES Extraction
@@ -65,7 +91,33 @@ WUP-JA7E.rpx has been extracted to Pilotwings.smc successfully.
 ============================================================================
 ```
 
+### GBA Extraction
+```
+WiiuVcExtractor.exe alldata.psb.m
+============================================================================
+Starting extraction of rom from alldata.psb.m...
+============================================================================
+PSB file detected!
+Decompressing PSB file...
+Checking for PSB data file alldata.bin...
+Found rom subfile at aawre1.120.m
+    Offset: 36358144
+    Length: 2408199
+Decompressing rom...
+Decompressing PSB file...
+Checking if this is a GBA VC title...
+Checking aawre1.120.m.extract...
+GBA Rom Detected!
+GBA Rom Code: AWRE
+GBA Title: Advance Wars
+Writing to Advance Wars.gba...
+GBA rom has been created successfully at Advance Wars.gba
+============================================================================
+alldata.psb.m has been extracted to Advance Wars.gba successfully.
+============================================================================
+```
+
 ## Credits
 Decompression of rpx files is possible due to the following tool created by 0CBH0: https://github.com/0CBH0/wiiurpxtool
 
-The upcoming GBA support will be possible due to research and code created by ajd4096: https://github.com/ajd4096/inject_gba
+Decompression and decryption of psb.m files is possible due to research and code created by ajd4096: https://github.com/ajd4096/inject_gba
