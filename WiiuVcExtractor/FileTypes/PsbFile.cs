@@ -38,7 +38,15 @@ namespace WiiuVcExtractor.FileTypes
 
         public PsbFile(string psbFilePath)
         {
-            compressedPsbFile = new MdfPsbFile(psbFilePath);
+            try
+            {
+                compressedPsbFile = new MdfPsbFile(psbFilePath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Could not successfully read PSB file: " + ex.Message);
+                return;
+            }
 
             // Get the psb data from the file decompressed by the MdfPsbFile
             header = new PsbHeader(compressedPsbFile.DecompressedPath);
