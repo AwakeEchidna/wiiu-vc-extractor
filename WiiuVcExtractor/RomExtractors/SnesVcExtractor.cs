@@ -109,6 +109,8 @@ namespace WiiuVcExtractor.RomExtractors
 
                 Console.WriteLine("Getting rom data...");
 
+                byte[] pcmData;
+
                 // Browse to the romPosition in the file
                 using (FileStream fs = new FileStream(rpxFile.DecompressedPath, FileMode.Open, FileAccess.Read))
                 {
@@ -117,8 +119,12 @@ namespace WiiuVcExtractor.RomExtractors
                         br.BaseStream.Seek(romPosition, SeekOrigin.Begin);
 
                         snesRomData = br.ReadBytes(romSize);
+                        pcmData = br.ReadBytes((int)(br.BaseStream.Length - romPosition + romSize));
                     }
                 }
+
+                SnesPcmExtractor pcmExtract = new SnesPcmExtractor(snesRomData, pcmData);
+                snesRomData = pcmExtract.ExtractPcmData();
 
                 Console.WriteLine("Writing to " + extractedRomPath + "...");
 
