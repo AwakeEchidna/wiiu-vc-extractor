@@ -56,7 +56,8 @@ namespace WiiuVcExtractor.Libraries
 
             if (pcmDataOffset == -1)
             {
-                throw new InvalidOperationException("Could not find any PCM data within the SNES VC rom.");
+                Console.WriteLine("No PCM data found, continuing...");
+                return processedRom;
             }
 
             Console.WriteLine("Reading PCM data into memory...");
