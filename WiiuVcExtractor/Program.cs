@@ -36,7 +36,7 @@ namespace WiiuVcExtractor
 
             if (!File.Exists(sourcePath))
             {
-                Console.WriteLine("Could not find source file at " + sourcePath + ". Please ensure that your filename is correct.");
+                Console.WriteLine("Could not find file at " + sourcePath + ". Please ensure that your filename is correct.");
                 return;
             }
 
