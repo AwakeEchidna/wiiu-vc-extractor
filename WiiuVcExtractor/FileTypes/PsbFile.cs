@@ -26,7 +26,8 @@ namespace WiiuVcExtractor.FileTypes
         private byte[] psbData;
         private byte[] binData;
         private byte[] romData;
-        private string romPath;
+        private string romName; // just the filename
+        private string romPath; // path to rom on disk
 
         public string DecompressedPath { get { return decompressedPath; } }
 
@@ -67,7 +68,8 @@ namespace WiiuVcExtractor.FileTypes
             UnpackEntries();
 
             // Attempt to read in the alldata.bin file
-            string binPath = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(psbFilePath)) + ".bin";
+            string absolutePath = Path.GetFullPath(psbFilePath);
+            string binPath = Path.Combine(Path.GetDirectoryName(absolutePath), Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(psbFilePath)) + ".bin");
             Console.WriteLine("Checking for PSB data file " + binPath + "...");
 
             if (!File.Exists(binPath))
@@ -80,9 +82,11 @@ namespace WiiuVcExtractor.FileTypes
 
             SplitSubfiles();
 
-            if (romData != null && !String.IsNullOrEmpty(romPath))
+            if (romData != null && !String.IsNullOrEmpty(romName))
             {
                 Console.WriteLine("Decompressing rom...");
+
+                romPath = Path.Combine(Path.GetDirectoryName(absolutePath), romName);
 
                 // Remove the temp file if it exists
                 if (File.Exists(romPath))
@@ -218,8 +222,8 @@ namespace WiiuVcExtractor.FileTypes
                         if (subfileName.Contains(ROM_SUBFILE_PATH))
                         {
                             romData = buffer;
-                            romPath = Path.GetFileName(subfileName).ToLower();
-                            Console.WriteLine("Found rom subfile at " + romPath);
+                            romName = Path.GetFileName(subfileName).ToLower();
+                            Console.WriteLine("Found rom subfile at " + romName);
                             Console.WriteLine("    Offset: " + offset);
                             Console.WriteLine("    Length: " + length);
                         }
