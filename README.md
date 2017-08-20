@@ -6,7 +6,7 @@ This currently only supports extracting GBA, NES, and SNES roms. Note that most 
 ## Installation
 ### Windows
 1. Ensure that you have installed the .Net Framework version 4.5.2 or newer (https://msdn.microsoft.com/en-us/library/5a4x27ek(v=vs.110).aspx)
-2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases
+2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases/latest
 3. Extract it to your local computer
 
 ### Linux
