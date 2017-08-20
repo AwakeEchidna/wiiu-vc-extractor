@@ -19,6 +19,8 @@ namespace WiiuVcExtractor.FileTypes
 
         UInt64 crcDataOffset;
 
+        bool verbose;
+
         public string Path { get { return path; } }
         public string DecompressedPath { get { return decompressedPath; } }
 
@@ -28,9 +30,10 @@ namespace WiiuVcExtractor.FileTypes
             return header.IsValid();
         }
 
-        public RpxFile(string rpxFilePath)
+        public RpxFile(string rpxFilePath, bool verbose = false)
         {
             Console.WriteLine("Decompressing RPX file...");
+            this.verbose = verbose;
 
             path = rpxFilePath;
             decompressedPath = path + ".extract";
@@ -38,6 +41,10 @@ namespace WiiuVcExtractor.FileTypes
             // Remove the temp file if it exists
             if (File.Exists(decompressedPath))
             {
+                if (verbose)
+                {
+                    Console.WriteLine("Removing file " + System.IO.Path.GetFullPath(decompressedPath));
+                }
                 File.Delete(decompressedPath);
             }
 
@@ -85,8 +92,10 @@ namespace WiiuVcExtractor.FileTypes
             sectionHeaders = new List<RpxSectionHeader>(header.SectionHeaderCount);
             crcs = new List<uint>(header.SectionHeaderCount);
 
-            // TODO: Add debug flag with this output
-            //Console.WriteLine(header.ToString());
+            if (verbose)
+            {
+                Console.WriteLine(header.ToString());
+            }
 
             using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
@@ -114,12 +123,16 @@ namespace WiiuVcExtractor.FileTypes
                             sectionHeaderIndex.offset = newSectionHeader.Offset;
                             sectionHeaderIndices.Add(sectionHeaderIndex);
 
-                            // TODO: Add debug flag with this output
-                            //Console.WriteLine(sectionHeaderIndex.ToString());
+                            if (verbose)
+                            {
+                                Console.WriteLine(sectionHeaderIndex.ToString());
+                            }
                         }
 
-                        // TODO: Add debug flag with this output
-                        //Console.WriteLine(newSectionHeader.ToString());
+                        if (verbose)
+                        {
+                            Console.WriteLine(newSectionHeader.ToString());
+                        }
                     }
                 }
             }
@@ -129,6 +142,11 @@ namespace WiiuVcExtractor.FileTypes
             // Iterate through all of the section header indices
             for (int i = 0; i < sectionHeaderIndices.Count; i++)
             {
+                if (verbose)
+                {
+                    Console.WriteLine(sectionHeaderIndices[i].ToString());
+                }
+
                 // Seek to the correct part of the file
                 RpxSectionHeader currentSectionHeader = sectionHeaders[(int)sectionHeaderIndices[i].index];
                 UInt64 position = currentSectionHeader.Offset;

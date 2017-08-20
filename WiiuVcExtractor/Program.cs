@@ -18,23 +18,54 @@ namespace WiiuVcExtractor
             Console.WriteLine("Extracts roms from Virtual Console games dumped by DDD.");
             Console.WriteLine("");
             Console.WriteLine("Usage:");
-            Console.WriteLine("wiiuvcextractor [rpx_or_psb.m_file]");
+            Console.WriteLine("wiiuvcextractor [-v] [rpx_or_psb.m_file]");
+            Console.WriteLine("  - Extract a rom from a Virtual Console dump");
+            Console.WriteLine("");
+            Console.WriteLine("wiiuvcextractor --version");
+            Console.WriteLine("  - Display current version");
+            Console.WriteLine("");
             Console.WriteLine("");
             Console.WriteLine("Usage Examples:");
             Console.WriteLine("wiiuvcextractor alldata.psb.m");
             Console.WriteLine("wiiuvcextractor WUP-FAME.rpx");
+            Console.WriteLine("wiiuvcextractor -v WUP-JBBE.rpx");
+        }
 
+        static void PrintVersion()
+        {
+            Console.WriteLine(WIIU_VC_EXTRACTOR_VERSION);
         }
 
         static void Main(string[] args)
         {
-            if (args.Length != 1)
+            if (args.Length == 0 || args.Length > 2)
             {
                 PrintUsage();
                 return;
             }
 
-            string sourcePath = args[0];
+            if (args.Length == 1)
+            {
+                if (args[0] == "--version")
+                {
+                    PrintVersion();
+                    return;
+                }
+            }
+
+            bool verbose = false;
+            if (args[0] == "-v")
+            {
+                verbose = true;
+                Console.WriteLine("Verbose output mode is set");
+            }
+
+            string sourcePath = args[args.Length - 1];
+
+            if (verbose)
+            {
+                Console.WriteLine("Source extract file is " + Path.GetFullPath(sourcePath));
+            }
 
             if (!File.Exists(sourcePath))
             {
@@ -54,7 +85,7 @@ namespace WiiuVcExtractor
             if (RpxFile.IsRpx(sourcePath))
             {
                 Console.WriteLine("RPX file detected!");
-                rpxFile = new RpxFile(sourcePath);
+                rpxFile = new RpxFile(sourcePath, verbose);
             }
             else if (PsbFile.IsPsb(sourcePath))
             {
@@ -68,12 +99,12 @@ namespace WiiuVcExtractor
 
             if (rpxFile != null)
             {
-                romExtractors.Add(new NesVcExtractor(sourcePath, rpxFile));
-                romExtractors.Add(new SnesVcExtractor(sourcePath, rpxFile));
+                romExtractors.Add(new NesVcExtractor(sourcePath, rpxFile, verbose));
+                romExtractors.Add(new SnesVcExtractor(sourcePath, rpxFile, verbose));
             }
             else if (psbFile != null)
             {
-                romExtractors.Add(new GbaVcExtractor(sourcePath, psbFile));
+                romExtractors.Add(new GbaVcExtractor(sourcePath, psbFile, verbose));
             }
 
             foreach (var romExtractor in romExtractors)
