@@ -152,7 +152,7 @@ namespace WiiuVcExtractor.RomExtractors
                 // Ensure the title is set to valid characters
                 for (int i = HEADER_TITLE_OFFSET; i < HEADER_TITLE_OFFSET + HEADER_TITLE_LENGTH; i++)
                 {
-                    if ((gbaHeader[i] < ASCII_ZERO || gbaHeader[i] > ASCII_Z) && gbaHeader[i] != 0x00 )
+                    if ((gbaHeader[i] < ASCII_ZERO || gbaHeader[i] > ASCII_Z) && gbaHeader[i] != 0x00 && gbaHeader[i] != ASCII_SPACE)
                     {
                         return false;
                     }
