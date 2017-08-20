@@ -11,12 +11,12 @@ This currently only supports extracting GBA, NES, and SNES roms. Note that most 
 
 ### Linux
 1. Ensure that you have installed Mono (http://www.mono-project.com/docs/getting-started/install/)
-2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases
+2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases/latest
 3. Extract it to your local computer
 
 ### Mac
 1. Ensure that you have installed Mono (http://www.mono-project.com/docs/getting-started/install/)
-2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases
+2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases/latest
 3. Extract it to your local computer
 
 
@@ -24,17 +24,23 @@ This currently only supports extracting GBA, NES, and SNES roms. Note that most 
 `WiiuVcExtractor <rpx_or_psb.m_file>`
 
 ```
-===============================
-Wii U Virtual Console Extractor
-===============================
+=====================================
+Wii U Virtual Console Extractor 0.4.0
+=====================================
 Extracts roms from Virtual Console games dumped by DDD.
 
 Usage:
-wiiuvcextractor [rpx_or_psb.m_file]
+wiiuvcextractor [-v] [rpx_or_psb.m_file]
+  - Extract a rom from a Virtual Console dump
+
+wiiuvcextractor --version
+  - Display current version
+
 
 Usage Examples:
 wiiuvcextractor alldata.psb.m
 wiiuvcextractor WUP-FAME.rpx
+wiiuvcextractor -v WUP-JBBE.rpx
 ```
 
 ### Running under Mono
@@ -86,9 +92,13 @@ Checking WUP-JA7E.rpx.extract...
 SNES Rom Detected!
 Virtual Console Title: WUP-JA7E
 SNES Title: Pilotwings
+SNES Header Name: PILOTWINGS
 Getting size of rom...
 Total SNES rom size: 524288 Bytes
 Getting rom data...
+Extracting PCM Data...
+Found the first PCM offset at 163937
+Reading PCM data into memory...
 Writing to Pilotwings.smc...
 Writing SNES rom data...
 SNES rom has been created successfully at Pilotwings.smc
