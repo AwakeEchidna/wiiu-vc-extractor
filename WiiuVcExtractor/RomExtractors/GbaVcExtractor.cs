@@ -49,8 +49,11 @@ namespace WiiuVcExtractor.RomExtractors
         private string romCode;
         private string romName;
 
-        public GbaVcExtractor(string dumpPath, PsbFile psbFile)
+        private bool verbose;
+
+        public GbaVcExtractor(string dumpPath, PsbFile psbFile, bool verbose = false)
         {
+            this.verbose = verbose;
             string gbaDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, GBA_DICTIONARY_CSV_PATH);
 
             gbaDictionary = new RomNameDictionary(gbaDictionaryPath);
