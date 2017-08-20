@@ -8,7 +8,7 @@ namespace WiiuVcExtractor
 {
     class Program
     {
-        private const string WIIU_VC_EXTRACTOR_VERSION = "0.3.3";
+        private const string WIIU_VC_EXTRACTOR_VERSION = "0.4.0";
 
         static void PrintUsage()
         {
