@@ -66,7 +66,7 @@ namespace WiiuVcExtractor.FileTypes
         private byte[] GenerateXorKey(string fileName)
         {
             byte[] fixedSeed = Encoding.ASCII.GetBytes(FIXED_SEED);
-            byte[] fileNameAsBytes = Encoding.ASCII.GetBytes(fileName);
+            byte[] fileNameAsBytes = Encoding.ASCII.GetBytes(Path.GetFileName(fileName));
             int hashSeedLength = fixedSeed.Length + fileNameAsBytes.Length;
             byte[] hashSeed = new byte[hashSeedLength];
 
