@@ -32,8 +32,11 @@ namespace WiiuVcExtractor.RomExtractors
         private byte[] nesRomHeader;
         private byte[] nesRomData;
 
-        public NesVcExtractor(string dumpPath, RpxFile rpxFile)
+        private bool verbose;
+
+        public NesVcExtractor(string dumpPath, RpxFile rpxFile, bool verbose = false)
         {
+            this.verbose = verbose;
             string nesDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, NES_DICTIONARY_CSV_PATH);
 
             nesDictionary = new RomNameDictionary(nesDictionaryPath);
