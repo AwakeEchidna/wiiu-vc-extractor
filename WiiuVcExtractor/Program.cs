@@ -8,11 +8,13 @@ namespace WiiuVcExtractor
 {
     class Program
     {
+        private const string WIIU_VC_EXTRACTOR_VERSION = "0.3.3";
+
         static void PrintUsage()
         {
-            Console.WriteLine("===============================");
-            Console.WriteLine("Wii U Virtual Console Extractor");
-            Console.WriteLine("===============================");
+            Console.WriteLine("=====================================");
+            Console.WriteLine("Wii U Virtual Console Extractor " + WIIU_VC_EXTRACTOR_VERSION);
+            Console.WriteLine("=====================================");
             Console.WriteLine("Extracts roms from Virtual Console games dumped by DDD.");
             Console.WriteLine("");
             Console.WriteLine("Usage:");
