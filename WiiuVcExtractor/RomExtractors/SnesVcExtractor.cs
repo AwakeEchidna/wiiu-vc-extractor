@@ -28,6 +28,7 @@ namespace WiiuVcExtractor.RomExtractors
         private static readonly int[] VALID_ROM_SIZES = { 0x9, 0xA, 0xB, 0xC, 0xD };
 
         private const string SNES_DICTIONARY_CSV_PATH = "snesromnames.csv";
+        private const string SNES_SIZE_CSV_PATH = "snesromsizes.csv";
 
         private const byte ASCII_SPACE = 0x20;
         private const byte ASCII_ZERO = 0x30;
@@ -35,6 +36,7 @@ namespace WiiuVcExtractor.RomExtractors
 
         private RpxFile rpxFile;
         private RomNameDictionary snesDictionary;
+        private RomSizeDictionary snesSizeDictionary;
         private SnesHeaderType headerType;
 
         private string extractedRomPath;
@@ -53,8 +55,10 @@ namespace WiiuVcExtractor.RomExtractors
         {
             this.verbose = verbose;
             string snesDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SNES_DICTIONARY_CSV_PATH);
+            string snesSizePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SNES_SIZE_CSV_PATH);
 
             snesDictionary = new RomNameDictionary(snesDictionaryPath);
+            snesSizeDictionary = new RomSizeDictionary(snesSizePath);
             snesLoRomHeader = new byte[SNES_HEADER_LENGTH];
             snesHiRomHeader = new byte[SNES_HEADER_LENGTH];
             headerType = SnesHeaderType.NotDetermined;
@@ -87,10 +91,11 @@ namespace WiiuVcExtractor.RomExtractors
 
                 // Attempt to get the game title from the dictionary
                 romName = snesDictionary.getRomName(vcName);
+                string romHeaderName = GetRomName(header);
 
                 if (String.IsNullOrEmpty(romName))
                 {
-                    romName = GetRomName(header);
+                    romName = romHeaderName;
 
                     // If a rom name could not be determined from the dictionary or rom, prompt the user
                     if (String.IsNullOrEmpty(romName))
@@ -102,11 +107,24 @@ namespace WiiuVcExtractor.RomExtractors
 
                 Console.WriteLine("Virtual Console Title: " + vcName);
                 Console.WriteLine("SNES Title: " + romName);
+                Console.WriteLine("SNES Header Name: " + romHeaderName);
 
                 extractedRomPath = romName + ".smc";
 
                 Console.WriteLine("Getting size of rom...");
                 int romSize = GetRomSize(header[HEADER_ROM_SIZE_OFFSET]);
+
+                if (verbose)
+                {
+                    Console.WriteLine("Rom size from header is {0} bytes.", romSize);
+                }
+
+                romSize = snesSizeDictionary.GetRomSize(romHeaderName, romSize);
+
+                if (verbose)
+                {
+                    Console.WriteLine("Actual rom size is {0} bytes.", romSize);
+                }
 
                 Console.WriteLine("Total SNES rom size: " + romSize + " Bytes");
 
