@@ -16,7 +16,7 @@ namespace WiiuVcExtractor.RomExtractors
 
         // Array of bytes matching the GBA logo at the beginning of the rom
         private static readonly byte[] GBA_HEADER_CHECK = {
-            0x2E, 0x00, 0x00, 0xEA, 0x24, 0xFF, 0xAE, 0x51, 0x69, 0x9A, 0xA2, 0x21, 0x3D, 0x84, 0x82, 0x0A,
+            0x24, 0xFF, 0xAE, 0x51, 0x69, 0x9A, 0xA2, 0x21, 0x3D, 0x84, 0x82, 0x0A,
             0x84, 0xE4, 0x09, 0xAD, 0x11, 0x24, 0x8B, 0x98, 0xC0, 0x81, 0x7F, 0x21, 0xA3, 0x52, 0xBE, 0x19,
             0x93, 0x09, 0xCE, 0x20, 0x10, 0x46, 0x4A, 0x4A, 0xF8, 0x27, 0x31, 0xEC, 0x58, 0xC7, 0xE8, 0x33,
             0x82, 0xE3, 0xCE, 0xBF, 0x85, 0xF4, 0xDF, 0x94, 0xCE, 0x4B, 0x09, 0xC1, 0x94, 0x56, 0x8A, 0xC0,
@@ -28,6 +28,7 @@ namespace WiiuVcExtractor.RomExtractors
             0x87, 0xF0, 0x3C, 0xAF, 0xD6, 0x25, 0xE4, 0x8B, 0x38, 0x0A, 0xAC, 0x72, 0x21, 0xD4, 0xF8, 0x07
         };
 
+        private const int HEADER_BITMAP_OFFSET = 0x4;
         private const int HEADER_TITLE_OFFSET = 0xA0;
         private const int HEADER_TITLE_LENGTH = 12;
         private const int HEADER_GAME_CODE_OFFSET = 0xAC;
@@ -143,46 +144,112 @@ namespace WiiuVcExtractor.RomExtractors
                     }
                 }
 
-                // Check the GBA boot bitmap
-                for (int i = 0; i < GBA_HEADER_CHECK.Length; i++)
+                if (verbose)
                 {
-                    if (gbaHeader[i] != GBA_HEADER_CHECK[i])
+                    Console.WriteLine("GBA Header data: {0}", BitConverter.ToString(gbaHeader));
+                    Console.WriteLine("Checking for GBA boot bitmap...");
+                }
+
+                // Check the GBA boot bitmap
+                for (int i = HEADER_BITMAP_OFFSET; i < HEADER_BITMAP_OFFSET + GBA_HEADER_CHECK.Length; i++)
+                {
+                    if (verbose)
                     {
+                        Console.WriteLine("Bitmap Character[{0}]: 0x{1:X}", i, gbaHeader[i]);
+                    }
+
+                    if (gbaHeader[i] != GBA_HEADER_CHECK[i - HEADER_BITMAP_OFFSET])
+                    {
+                        if (verbose)
+                        {
+                            Console.WriteLine("Could not find GBA boot bitmap! GBA rom not found.");
+                        }
                         return false;
                     }
+                }
+
+                if (verbose)
+                {
+                    Console.WriteLine("Checking for valid title...");
                 }
 
                 // Ensure the title is set to valid characters
                 for (int i = HEADER_TITLE_OFFSET; i < HEADER_TITLE_OFFSET + HEADER_TITLE_LENGTH; i++)
                 {
-                    if ((gbaHeader[i] < ASCII_ZERO || gbaHeader[i] > ASCII_Z) && gbaHeader[i] != 0x00 && gbaHeader[i] != ASCII_SPACE)
+                    if (verbose)
                     {
+                        Console.WriteLine("Title Character[{0}]: {1}", i, Convert.ToChar(gbaHeader[i]));
+                    }
+
+                    if ((gbaHeader[i] < ASCII_SPACE || gbaHeader[i] > ASCII_Z) && gbaHeader[i] != 0x00)
+                    {
+                        if (verbose)
+                        {
+                            Console.WriteLine("Title character is invalid! GBA rom not found.");
+                        }
                         return false;
                     }
+                }
+
+                if (verbose)
+                {
+                    Console.WriteLine("Checking for valid game code...");
                 }
 
                 // Ensure the game code is set to valid characters
                 for (int i = HEADER_GAME_CODE_OFFSET; i < HEADER_GAME_CODE_OFFSET + HEADER_GAME_CODE_LENGTH; i++)
                 {
+                    if (verbose)
+                    {
+                        Console.WriteLine("Game Code Character[{0}]: {1}", i, Convert.ToChar(gbaHeader[i]));
+                    }
+
                     if (gbaHeader[i] < ASCII_ZERO || gbaHeader[i] > ASCII_Z)
                     {
+                        if (verbose)
+                        {
+                            Console.WriteLine("Game code character is invalid! GBA rom not found.");
+                        }
                         return false;
                     }
                 }
 
                 romCode = Encoding.ASCII.GetString(gbaHeader, HEADER_GAME_CODE_OFFSET, HEADER_GAME_CODE_LENGTH);
 
+                if (verbose)
+                {
+                    Console.WriteLine("Checking for valid maker code...");
+                }
+
                 // Check the maker code
                 for (int i = HEADER_MAKER_CODE_OFFSET; i < HEADER_MAKER_CODE_OFFSET + HEADER_MAKER_CODE_LENGTH; i++)
                 {
+                    if (verbose)
+                    {
+                        Console.WriteLine("Maker Code Character[{0}]: {1}", i, Convert.ToChar(gbaHeader[i]));
+                    }
+
                     if (gbaHeader[i] < ASCII_ZERO || gbaHeader[i] > ASCII_Z)
                     {
+                        if (verbose)
+                        {
+                            Console.WriteLine("Maker code character is invalid! GBA rom not found.");
+                        }
                         return false;
                     }
                 }
 
+                if (verbose)
+                {
+                    Console.WriteLine("Checking for valid fixed header value...");
+                }
+
                 if (gbaHeader[HEADER_FIXED_VALUE_OFFSET] != HEADER_FIXED_VALUE_VALUE)
                 {
+                    if (verbose)
+                    {
+                        Console.WriteLine("Header fixed value is invalid! GBA rom not found.");
+                    }
                     return false;
                 }
 
