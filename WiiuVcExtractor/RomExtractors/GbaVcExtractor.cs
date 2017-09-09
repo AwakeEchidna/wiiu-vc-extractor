@@ -41,6 +41,7 @@ namespace WiiuVcExtractor.RomExtractors
         private const byte ASCII_SPACE = 0x20;
         private const byte ASCII_ZERO = 0x30;
         private const byte ASCII_Z = 0x5A;
+        private const byte ASCII_TILDE = 0x7E;
 
         private PsbFile psbFile;
         private RomNameDictionary gbaDictionary;
@@ -181,7 +182,7 @@ namespace WiiuVcExtractor.RomExtractors
                         Console.WriteLine("Title Character[{0}]: {1}", i, Convert.ToChar(gbaHeader[i]));
                     }
 
-                    if ((gbaHeader[i] < ASCII_SPACE || gbaHeader[i] > ASCII_Z) && gbaHeader[i] != 0x00)
+                    if ((gbaHeader[i] < ASCII_SPACE || gbaHeader[i] > ASCII_TILDE) && gbaHeader[i] != 0x00)
                     {
                         if (verbose)
                         {
