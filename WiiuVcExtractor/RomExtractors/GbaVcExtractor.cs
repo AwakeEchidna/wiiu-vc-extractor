@@ -12,6 +12,12 @@ namespace WiiuVcExtractor.RomExtractors
     {
         private const string GBA_DICTIONARY_CSV_PATH = "gbaromnames.csv";
 
+        private const int GBA_ENTRY_POINT_LENGTH = 4;
+
+        private static readonly byte[] GBA_ENTRY_POINT_CHECK = {
+            0x2E, 0x00, 0x00, 0xEA
+        };
+
         private const int GBA_HEADER_LENGTH = 192;
 
         // Array of bytes matching the GBA logo at the beginning of the rom
@@ -113,6 +119,9 @@ namespace WiiuVcExtractor.RomExtractors
                 File.Move(psbFile.DecompressedPath, extractedRomPath);
 
                 Console.WriteLine("GBA rom has been created successfully at " + extractedRomPath);
+
+                // ensure the first 4 bytes of the rom file are 0x2E0000EA and then replace them if they are not
+                FixEntryPoint(extractedRomPath);
 
                 return extractedRomPath;
             }
@@ -257,6 +266,48 @@ namespace WiiuVcExtractor.RomExtractors
                 Console.WriteLine("GBA Rom Detected!");
                 return true;
             }
+
+            return false;
+        }
+
+        private bool FixEntryPoint(string path)
+        {
+            Console.WriteLine("Reading current GBA rom entry point...");
+            byte[] currentEntryPoint = new byte[GBA_ENTRY_POINT_LENGTH]; ;
+
+            using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+            {
+                using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
+                {
+                    // Read in the current entry point
+                    currentEntryPoint = br.ReadBytes(GBA_ENTRY_POINT_LENGTH);
+                }
+            }
+
+            for (int i = 0; i < currentEntryPoint.Length; i++)
+            {
+                if (verbose)
+                {
+                    Console.WriteLine("Entry Point Byte[{0}]: 0x{1:X}", i, currentEntryPoint[i]);
+                }
+
+                if (currentEntryPoint[i] != GBA_ENTRY_POINT_CHECK[i])
+                {
+                    Console.WriteLine("GBA rom entry point byte[{0}]: {1:X} is not equal to expected entry point byte[{0}]: {2:X}, need to replace current entry point.", i, currentEntryPoint[i], GBA_ENTRY_POINT_CHECK[i]);
+
+                    // Open the file and replace the first 4 bytes
+                    using (FileStream fs = new FileStream(path, FileMode.Open))
+                    {
+                        fs.Write(GBA_ENTRY_POINT_CHECK, 0, GBA_ENTRY_POINT_LENGTH);
+                    }
+
+                    Console.WriteLine("GBA rom entry point has been replaced.");
+
+                    return true;
+                }
+            }
+
+            Console.WriteLine("All GBA rom entry point values are as expected.");
 
             return false;
         }
