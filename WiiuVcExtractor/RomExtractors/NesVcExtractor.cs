@@ -34,7 +34,7 @@ namespace WiiuVcExtractor.RomExtractors
 
         private bool verbose;
 
-        public NesVcExtractor(string dumpPath, RpxFile rpxFile, bool verbose = false)
+        public NesVcExtractor(RpxFile rpxFile, bool verbose = false)
         {
             this.verbose = verbose;
             string nesDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, NES_DICTIONARY_CSV_PATH);

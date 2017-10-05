@@ -59,7 +59,7 @@ namespace WiiuVcExtractor.RomExtractors
 
         private bool verbose;
 
-        public GbaVcExtractor(string dumpPath, PsbFile psbFile, bool verbose = false)
+        public GbaVcExtractor(PsbFile psbFile, bool verbose = false)
         {
             this.verbose = verbose;
             string gbaDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, GBA_DICTIONARY_CSV_PATH);
