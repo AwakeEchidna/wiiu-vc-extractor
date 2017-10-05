@@ -8,14 +8,14 @@ namespace WiiuVcExtractor
 {
     class Program
     {
-        private const string WIIU_VC_EXTRACTOR_VERSION = "0.4.3";
+        private const string WIIU_VC_EXTRACTOR_VERSION = "0.5.0";
 
         static void PrintUsage()
         {
             Console.WriteLine("=====================================");
             Console.WriteLine("Wii U Virtual Console Extractor " + WIIU_VC_EXTRACTOR_VERSION);
             Console.WriteLine("=====================================");
-            Console.WriteLine("Extracts roms from Virtual Console games dumped by DDD.");
+            Console.WriteLine("Extracts roms from Virtual Console games dumped by DDD or from the SNES Mini.");
             Console.WriteLine("");
             Console.WriteLine("Usage:");
             Console.WriteLine("wiiuvcextractor [-v] [rpx_or_psb.m_file]");
@@ -28,6 +28,7 @@ namespace WiiuVcExtractor
             Console.WriteLine("Usage Examples:");
             Console.WriteLine("wiiuvcextractor alldata.psb.m");
             Console.WriteLine("wiiuvcextractor WUP-FAME.rpx");
+            Console.WriteLine("wiiuvcextractor CLV-P-SAAAE.sfrom");
             Console.WriteLine("wiiuvcextractor -v WUP-JBBE.rpx");
         }
 
@@ -93,18 +94,21 @@ namespace WiiuVcExtractor
                 psbFile = new PsbFile(sourcePath);
             }
 
-
             // Create the list of rom extractors
             List<IRomExtractor> romExtractors = new List<IRomExtractor>();
 
             if (rpxFile != null)
             {
-                romExtractors.Add(new NesVcExtractor(sourcePath, rpxFile, verbose));
-                romExtractors.Add(new SnesVcExtractor(sourcePath, rpxFile, verbose));
+                romExtractors.Add(new NesVcExtractor(rpxFile, verbose));
+                romExtractors.Add(new SnesVcExtractor(rpxFile.DecompressedPath, verbose));
             }
             else if (psbFile != null)
             {
-                romExtractors.Add(new GbaVcExtractor(sourcePath, psbFile, verbose));
+                romExtractors.Add(new GbaVcExtractor(psbFile, verbose));
+            }
+            else if (Path.GetExtension(sourcePath) == ".sfrom")
+            {
+                romExtractors.Add(new SnesVcExtractor(sourcePath, verbose));
             }
 
             foreach (var romExtractor in romExtractors)

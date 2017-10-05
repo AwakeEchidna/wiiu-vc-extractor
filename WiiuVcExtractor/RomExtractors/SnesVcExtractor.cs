@@ -34,7 +34,7 @@ namespace WiiuVcExtractor.RomExtractors
         private const byte ASCII_ZERO = 0x30;
         private const byte ASCII_Z = 0x5A;
 
-        private RpxFile rpxFile;
+        private string decompressedRomPath;
         private RomNameDictionary snesDictionary;
         private RomSizeDictionary snesSizeDictionary;
         private SnesHeaderType headerType;
@@ -51,7 +51,7 @@ namespace WiiuVcExtractor.RomExtractors
 
         private bool verbose;
 
-        public SnesVcExtractor(string dumpPath, RpxFile rpxFile, bool verbose = false)
+        public SnesVcExtractor(string decompressedRomPath, bool verbose = false)
         {
             this.verbose = verbose;
             string snesDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SNES_DICTIONARY_CSV_PATH);
@@ -65,7 +65,7 @@ namespace WiiuVcExtractor.RomExtractors
             romPosition = 0;
             vcNamePosition = 0;
 
-            this.rpxFile = rpxFile;
+            this.decompressedRomPath = decompressedRomPath;
         }
 
         public string ExtractRom()
@@ -133,13 +133,13 @@ namespace WiiuVcExtractor.RomExtractors
                 byte[] pcmData;
 
                 // Browse to the romPosition in the file
-                using (FileStream fs = new FileStream(rpxFile.DecompressedPath, FileMode.Open, FileAccess.Read))
+                using (FileStream fs = new FileStream(decompressedRomPath, FileMode.Open, FileAccess.Read))
                 {
                     using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
                     {
                         if (verbose)
                         {
-                            Console.WriteLine("Browsing to 0x{0:X} in {1} to read in the rom data...", romPosition, rpxFile.DecompressedPath);
+                            Console.WriteLine("Browsing to 0x{0:X} in {1} to read in the rom data...", romPosition, decompressedRomPath);
                         }
 
                         br.BaseStream.Seek(romPosition, SeekOrigin.Begin);
@@ -171,12 +171,12 @@ namespace WiiuVcExtractor.RomExtractors
             Console.WriteLine("Checking if this is an SNES VC title...");
 
             // First check if this is a valid ELF file:
-            if (rpxFile != null)
+            if (decompressedRomPath != null)
             {
-                Console.WriteLine("Checking " + rpxFile.DecompressedPath + "...");
-                if (!File.Exists(rpxFile.DecompressedPath))
+                Console.WriteLine("Checking " + decompressedRomPath + "...");
+                if (!File.Exists(decompressedRomPath))
                 {
-                    Console.WriteLine("Could not find decompressed RPX at " + rpxFile.DecompressedPath);
+                    Console.WriteLine("Could not find decompressed rom at " + decompressedRomPath);
                     return false;
                 }
 
@@ -188,7 +188,7 @@ namespace WiiuVcExtractor.RomExtractors
                 }
 
                 // Search the decompressed RPX file for the WUP-F specification before the SNES rom's data
-                using (FileStream fs = new FileStream(rpxFile.DecompressedPath, FileMode.Open, FileAccess.Read))
+                using (FileStream fs = new FileStream(decompressedRomPath, FileMode.Open, FileAccess.Read))
                 {
                     using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
                     {
@@ -244,7 +244,7 @@ namespace WiiuVcExtractor.RomExtractors
             }
 
             // Read in the headers
-            using (FileStream fs = new FileStream(rpxFile.DecompressedPath, FileMode.Open, FileAccess.Read))
+            using (FileStream fs = new FileStream(decompressedRomPath, FileMode.Open, FileAccess.Read))
             {
                 using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
                 {
