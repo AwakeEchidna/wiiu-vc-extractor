@@ -1,5 +1,5 @@
 # wiiu-vc-extractor
-Extracts Wii U Virtual Console roms from dumps created via [DDD](https://github.com/dimok789/ddd/releases).
+Extracts Wii U Virtual Console roms from dumps created via [DDD](https://github.com/dimok789/ddd/releases) or from the SNES Mini.
 
 This currently only supports extracting GBA, NES, and SNES roms. Note that most VC titles are not clean roms but have been modified from their original state.
 
@@ -21,13 +21,13 @@ This currently only supports extracting GBA, NES, and SNES roms. Note that most 
 
 
 ## Basic Usage
-`WiiuVcExtractor <rpx_or_psb.m_file>`
+`WiiuVcExtractor <dump_file>`
 
 ```
 =====================================
-Wii U Virtual Console Extractor 0.4.0
+Wii U Virtual Console Extractor 0.5.0
 =====================================
-Extracts roms from Virtual Console games dumped by DDD.
+Extracts roms from Virtual Console games dumped by DDD or from the SNES Mini.
 
 Usage:
 wiiuvcextractor [-v] [rpx_or_psb.m_file]
@@ -40,11 +40,12 @@ wiiuvcextractor --version
 Usage Examples:
 wiiuvcextractor alldata.psb.m
 wiiuvcextractor WUP-FAME.rpx
+wiiuvcextractor CLV-P-SAAAE.sfrom
 wiiuvcextractor -v WUP-JBBE.rpx
 ```
 
 ### Running under Mono
-`mono WiiuVcExtractor <rpx_or_psb.m_file>`
+`mono WiiuVcExtractor <dump_file>`
 
 ## Example Runs
 ### NES Extraction
@@ -76,7 +77,7 @@ WUP-FCSE.rpx has been extracted to MEGA MAN 6.nes successfully.
 ============================================================================
 ```
 
-### SNES Extraction
+### SNES Extraction (rpx)
 ```
 ============================================================================
 Starting extraction of rom from WUP-JA7E.rpx...
@@ -104,6 +105,31 @@ Writing SNES rom data...
 SNES rom has been created successfully at Pilotwings.smc
 ============================================================================
 WUP-JA7E.rpx has been extracted to Pilotwings.smc successfully.
+============================================================================
+```
+
+### SNES Extraction (sfrom)
+```
+============================================================================
+Starting extraction of rom from CLV-P-SAAHE.sfrom...
+============================================================================
+Checking if this is an SNES VC title...
+Checking CLV-P-SAAHE.sfrom...
+SNES Rom Detected!
+Virtual Console Title: WUP-JAJE
+SNES Title: Super Metroid
+SNES Header Name: Super Metroid
+Getting size of rom...
+Total SNES rom size: 3145728 Bytes
+Getting rom data...
+Extracting PCM Data...
+Found the first PCM offset at 2609193
+Reading PCM data into memory...
+Writing to Super Metroid.smc...
+Writing SNES rom data...
+SNES rom has been created successfully at Super Metroid.smc
+============================================================================
+CLV-P-SAAHE.sfrom has been extracted to Super Metroid.smc successfully.
 ============================================================================
 ```
 
