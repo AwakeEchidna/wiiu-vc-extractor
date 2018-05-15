@@ -109,7 +109,7 @@ namespace WiiuVcExtractor.RomExtractors
                 Console.WriteLine("SNES Title: " + romName);
                 Console.WriteLine("SNES Header Name: " + romHeaderName);
 
-                extractedRomPath = romName + ".smc";
+                extractedRomPath = romName + ".sfc";
 
                 Console.WriteLine("Getting size of rom...");
                 int romSize = GetRomSize(header[HEADER_ROM_SIZE_OFFSET]);
