@@ -104,7 +104,7 @@ namespace WiiuVcExtractor.RomExtractors
                         nesRomHeader[BROKEN_NES_HEADER_OFFSET] = CHARACTER_BREAK;
 
                         Console.WriteLine("Getting rom data...");
-                        nesRomData = br.ReadBytes(romSize);
+						nesRomData = br.ReadBytes(romSize - NES_HEADER_LENGTH);
 
                         Console.WriteLine("Writing to " + extractedRomPath + "...");
 
