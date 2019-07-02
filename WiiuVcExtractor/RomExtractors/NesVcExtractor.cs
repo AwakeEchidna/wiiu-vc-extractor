@@ -38,8 +38,9 @@ namespace WiiuVcExtractor.RomExtractors
         private byte[] nesRomData;
 
         private bool verbose;
-        // Identify ROM as FDS game to prevent overwriting header
-        private bool isFDS;
+        // Identify ROM as FDS game for proper file extension and prevent
+        // corrupting header
+        private bool isFDS = false;
 
         public NesVcExtractor(RpxFile rpxFile, bool verbose = false)
         {
@@ -87,8 +88,7 @@ namespace WiiuVcExtractor.RomExtractors
                         if (!isFDS)
                         {
                             extractedRomPath = romName + ".nes";
-                        } else
-                        {
+                        } else {
                             extractedRomPath = romName + ".fds";
                         }
 
@@ -167,7 +167,8 @@ namespace WiiuVcExtractor.RomExtractors
                         {
                             byte[] buffer = br.ReadBytes(NES_HEADER_LENGTH);
 
-                            // If the buffer matches the first byte of the NES header, check the following 15 bytes
+                            // If the buffer matches the first byte of the NES 
+                            // header, check the following 15 bytes
                             if (buffer[0] == NES_HEADER_CHECK[0])
                             {
                                 Array.Copy(buffer, headerBuffer, NES_HEADER_LENGTH);
@@ -229,7 +230,6 @@ namespace WiiuVcExtractor.RomExtractors
                         }
                     }
                 }
-
             }
 
             Console.WriteLine("Not an NES or FDS VC Title");
