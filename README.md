@@ -1,5 +1,3 @@
-# Modification of vc extractor to allow invalid nes games to pass verification (Lost Levels)
-
 # wiiu-vc-extractor
 Extracts Wii U Virtual Console roms from dumps created via [DDD](https://github.com/dimok789/ddd/releases) or from the SNES Mini.
 
