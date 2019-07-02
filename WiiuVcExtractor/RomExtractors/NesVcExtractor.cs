@@ -8,7 +8,12 @@ namespace WiiuVcExtractor.RomExtractors
 {
     public class NesVcExtractor : IRomExtractor
     {
+        // Normal NES header
         private static readonly byte[] NES_HEADER_CHECK = { 0x4E, 0x45, 0x53 };
+        // Lost Levels header
+        private static readonly byte[] NHVC_HEADER_CHECK = { 0x01, 0x2A, 0x4E,
+            0x49, 0x4E, 0x54, 0x45, 0x4E, 0x44, 0x4F, 0x2D, 0x48, 0x56, 0x43,
+            0x2A, 0x01};
         private const int NES_HEADER_LENGTH = 16;
         private const int VC_NAME_LENGTH = 8;
         private const int VC_NAME_PADDING = 8;
@@ -33,6 +38,8 @@ namespace WiiuVcExtractor.RomExtractors
         private byte[] nesRomData;
 
         private bool verbose;
+        // Identify ROM as SMB2LL to prevent overwriting header
+        private bool isSMB2LL;
 
         public NesVcExtractor(RpxFile rpxFile, bool verbose = false)
         {
@@ -99,9 +106,12 @@ namespace WiiuVcExtractor.RomExtractors
                         int romSize = prgPageSize + chrPageSize + NES_HEADER_LENGTH;
                         Console.WriteLine("Total NES rom size: " + romSize + " Bytes");
 
-                        // Fix the NES header
-                        Console.WriteLine("Fixing VC NES Header...");
-                        nesRomHeader[BROKEN_NES_HEADER_OFFSET] = CHARACTER_BREAK;
+                        // Fix the NES header, unless rom is SMB2LL
+                        if(!isSMB2LL)
+                        {
+                            Console.WriteLine("Fixing VC NES Header...");
+                            nesRomHeader[BROKEN_NES_HEADER_OFFSET] = CHARACTER_BREAK;
+                        }
 
                         Console.WriteLine("Getting rom data...");
                         nesRomData = br.ReadBytes(romSize - NES_HEADER_LENGTH);
@@ -125,10 +135,18 @@ namespace WiiuVcExtractor.RomExtractors
             return extractedRomPath;
         }
 
+        // Determines if this is a valid NES ROM, with either NES or 
+        // *NINTENDO-HVC* header
         public bool IsValidRom()
         {
             Console.WriteLine("Checking if this is an NES VC title...");
 
+            //
+            // THIS THING RIGHT HERE
+            // CHANGE THIS TO ALLOW FOR ".*NINTENDO-HVC*." (01 2A 4E 49 4E 54 45 4E 44 4F 2D 48 56 43 2A 01) header for Lost Levels 
+            // in addition to "NES�����������" (4E 45 53 00 01 01 00 00 00 00 00 00 00 00 00 00)
+            // line 710, just after line 700 with WUP filename in .extract
+            //
             // First check if this is a valid ELF file:
             if (rpxFile != null)
             {
@@ -178,6 +196,35 @@ namespace WiiuVcExtractor.RomExtractors
                                         Console.WriteLine("NES Rom Detected!");
                                         return true;
                                     }
+                                }
+                            }
+
+                            // If the buffer fails for the normal NES header,
+                            // try again with first byte of Lost Levels header
+                            if (buffer[0] == NHVC_HEADER_CHECK[0])
+                            {
+                                Array.Copy(buffer, headerBuffer, NES_HEADER_LENGTH);
+
+                                bool headerValid = true;
+
+                                // Ensure the rest of the header is valid
+                                for (int i = 1; i < 16; i++)
+                                {
+                                    if (headerBuffer[i] != NHVC_HEADER_CHECK[i])
+                                    {
+                                        headerValid = false;
+                                    }
+                                }
+
+                                if (headerValid)
+                                {
+                                    // The rom position is a header length before the current stream position
+                                    romPosition = br.BaseStream.Position - NES_HEADER_LENGTH;
+                                    vcNamePosition = romPosition - 16;
+                                    Array.Copy(headerBuffer, 0, nesRomHeader, 0, NES_HEADER_LENGTH);
+                                    Console.WriteLine("NES Rom Detected!");
+                                    isSMB2LL = true;
+                                    return true;
                                 }
                             }
                         }
