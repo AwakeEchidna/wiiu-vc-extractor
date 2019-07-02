@@ -84,7 +84,13 @@ namespace WiiuVcExtractor.RomExtractors
                         Console.WriteLine("Virtual Console Title: " + vcName);
                         Console.WriteLine("NES Title: " + romName);
 
-                        extractedRomPath = romName + ".nes";
+                        if (!isFDS)
+                        {
+                            extractedRomPath = romName + ".nes";
+                        } else
+                        {
+                            extractedRomPath = romName + ".fds";
+                        }
 
                         br.ReadBytes(VC_NAME_PADDING);
 
