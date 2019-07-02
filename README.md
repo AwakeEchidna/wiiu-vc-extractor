@@ -3,7 +3,7 @@ Extracts Wii U Virtual Console roms from dumps created via [DDD](https://github.
 
 This currently only supports extracting GBA, NES, FDS, and SNES roms. 
 # Note:
-- Most VC titles are not clean roms but have been modified from their original state
+- Most VC titles are not clean roms but have been modified from their original state.
 - Famicom Disk System games are not playable, but can be edited to be playable.
 
 ## Installation
