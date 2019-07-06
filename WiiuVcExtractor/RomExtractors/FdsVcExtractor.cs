@@ -6,15 +6,13 @@ using WiiuVcExtractor.Libraries;
 
 namespace WiiuVcExtractor.RomExtractors
 {
-    public class NesVcExtractor : IRomExtractor
+    public class FdsVcExtractor : IRomExtractor
     {
-        // Normal NES header
-        private static readonly byte[] NES_HEADER_CHECK = { 0x4E, 0x45, 0x53 };
         // Famicom Disk System header
- //       private static readonly byte[] FDS_HEADER_CHECK = { 0x01, 0x2A, 0x4E,
-  //          0x49, 0x4E, 0x54, 0x45, 0x4E, 0x44, 0x4F, 0x2D, 0x48, 0x56, 0x43,
-   //         0x2A, 0x01};
-        private const int NES_HEADER_LENGTH = 16;
+        private static readonly byte[] FDS_HEADER_CHECK = { 0x01, 0x2A, 0x4E,
+            0x49, 0x4E, 0x54, 0x45, 0x4E, 0x44, 0x4F, 0x2D, 0x48, 0x56, 0x43,
+            0x2A, 0x01};
+        private const int FDS_HEADER_LENGTH = 16;
         private const int VC_NAME_LENGTH = 8;
         private const int VC_NAME_PADDING = 8;
         private const int PRG_PAGE_SIZE = 16384;
@@ -34,21 +32,18 @@ namespace WiiuVcExtractor.RomExtractors
         private string vcName;
         private long vcNamePosition;
 
-        private byte[] nesRomHeader;
+        private byte[] fdsRomHeader;
         private byte[] nesRomData;
 
         private bool verbose;
-        // Identify ROM as FDS game for proper file extension and prevent
-        // corrupting header
-//        private bool isFDS = false;
 
-        public NesVcExtractor(RpxFile rpxFile, bool verbose = false)
+        public FdsVcExtractor(RpxFile rpxFile, bool verbose = false)
         {
             this.verbose = verbose;
             string nesDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, NES_DICTIONARY_CSV_PATH);
 
             nesDictionary = new RomNameDictionary(nesDictionaryPath);
-            nesRomHeader = new byte[NES_HEADER_LENGTH];
+            fdsRomHeader = new byte[FDS_HEADER_LENGTH];
             romPosition = 0;
             vcNamePosition = 0;
 
@@ -78,30 +73,25 @@ namespace WiiuVcExtractor.RomExtractors
                         // If a rom name could not be determined, prompt the user
                         if (String.IsNullOrEmpty(romName))
                         {
-                            Console.WriteLine("Could not determine NES rom name, please enter your desired filename:");
+                            Console.WriteLine("Could not determine FDS rom name, please enter your desired filename:");
                             romName = Console.ReadLine();
                         }
 
                         Console.WriteLine("Virtual Console Title: " + vcName);
-                        Console.WriteLine("NES Title: " + romName);
+                        Console.WriteLine("FDS Title: " + romName);
 
-//                        if (!isFDS)
-//                        {
-                            extractedRomPath = romName + ".nes";
-//                        } else {
-//                            extractedRomPath = romName + ".fds";
-//                        }
+                        extractedRomPath = romName + ".fds";
 
                         br.ReadBytes(VC_NAME_PADDING);
 
                         // We are currently at the NES header's position again, read past it
-                        br.ReadBytes(NES_HEADER_LENGTH);
+                        br.ReadBytes(FDS_HEADER_LENGTH);
 
                         // Determine the NES rom's size
                         Console.WriteLine("Getting number of PRG and CHR pages...");
 
-                        byte prgPages = nesRomHeader[PRG_PAGE_OFFSET];
-                        byte chrPages = nesRomHeader[CHR_PAGE_OFFSET];
+                        byte prgPages = fdsRomHeader[PRG_PAGE_OFFSET];
+                        byte chrPages = fdsRomHeader[CHR_PAGE_OFFSET];
 
                         Console.WriteLine("PRG Pages: " + prgPages);
                         Console.WriteLine("CHR Pages: " + chrPages);
@@ -109,30 +99,23 @@ namespace WiiuVcExtractor.RomExtractors
                         int prgPageSize = prgPages * PRG_PAGE_SIZE;
                         int chrPageSize = chrPages * CHR_PAGE_SIZE;
 
-                        int romSize = prgPageSize + chrPageSize + NES_HEADER_LENGTH;
-                        Console.WriteLine("Total NES rom size: " + romSize + " Bytes");
-
-                        // Fix the NES header, unless rom is FDS game
-//                        if(!isFDS)
-//                        {
-                            Console.WriteLine("Fixing VC NES Header...");
-                            nesRomHeader[BROKEN_NES_HEADER_OFFSET] = CHARACTER_BREAK;
-//                        }
+                        int romSize = prgPageSize + chrPageSize + FDS_HEADER_LENGTH;
+                        Console.WriteLine("Total FDS rom size: " + romSize + " Bytes");
 
                         Console.WriteLine("Getting rom data...");
-                        nesRomData = br.ReadBytes(romSize - NES_HEADER_LENGTH);
+                        nesRomData = br.ReadBytes(romSize - FDS_HEADER_LENGTH);
 
                         Console.WriteLine("Writing to " + extractedRomPath + "...");
 
                         using (BinaryWriter bw = new BinaryWriter(File.Open(extractedRomPath, FileMode.Create)))
                         {
-                            Console.WriteLine("Writing NES rom header...");
-                            bw.Write(nesRomHeader, 0, NES_HEADER_LENGTH);
-                            Console.WriteLine("Writing NES rom data...");
+                            Console.WriteLine("Writing FDS rom header...");
+                            bw.Write(fdsRomHeader, 0, FDS_HEADER_LENGTH);
+                            Console.WriteLine("Writing FDS rom data...");
                             bw.Write(nesRomData);
                         }
 
-                        Console.WriteLine("NES rom has been created successfully at " + extractedRomPath);
+                        Console.WriteLine("Famicom Disk System rom has been created successfully at " + extractedRomPath);
                     }
                 }
 
@@ -144,7 +127,7 @@ namespace WiiuVcExtractor.RomExtractors
         // Determines if this is a valid NES ROM, with either NES or FDS header
         public bool IsValidRom()
         {
-            Console.WriteLine("Checking if this is an NES VC title...");
+            Console.WriteLine("Checking if this is an Famicom Disk System VC title...");
 
             // First check if this is a valid ELF file:
             if (rpxFile != null)
@@ -156,55 +139,22 @@ namespace WiiuVcExtractor.RomExtractors
                     return false;
                 }
 
-                byte[] headerBuffer = new byte[NES_HEADER_LENGTH];
+                byte[] headerBuffer = new byte[FDS_HEADER_LENGTH];
 
-                // Search the decompressed RPX file for the NES header
+                // Search the decompressed RPX file for the FDS header
                 using (FileStream fs = new FileStream(rpxFile.DecompressedPath, FileMode.Open, FileAccess.Read))
                 {
                     using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
                     {
                         while (br.BaseStream.Position != br.BaseStream.Length)
                         {
-                            byte[] buffer = br.ReadBytes(NES_HEADER_LENGTH);
+                            byte[] buffer = br.ReadBytes(FDS_HEADER_LENGTH);
 
-                            // If the buffer matches the first byte of the NES 
-                            // header, check the following 15 bytes
-                            if (buffer[0] == NES_HEADER_CHECK[0])
-                            {
-                                Array.Copy(buffer, headerBuffer, NES_HEADER_LENGTH);
-
-                                // Check the rest of the signature
-                                if (headerBuffer[1] == NES_HEADER_CHECK[1] && headerBuffer[2] == NES_HEADER_CHECK[2])
-                                {
-                                    bool headerValid = true;
-
-                                    // Ensure the last 8 bytes of the header are 0x00
-                                    for (int i = 0; i < 8; i++)
-                                    {
-                                        if (headerBuffer[i + 8] != 0x00)
-                                        {
-                                            headerValid = false;
-                                        }
-                                    }
-
-                                    if (headerValid)
-                                    {
-                                        // The rom position is a header length before the current stream position
-                                        romPosition = br.BaseStream.Position - NES_HEADER_LENGTH;
-                                        vcNamePosition = romPosition - 16;
-                                        Array.Copy(headerBuffer, 0, nesRomHeader, 0, NES_HEADER_LENGTH);
-                                        Console.WriteLine("NES Rom Detected!");
-                                        return true;
-                                    }
-                                }
-                            }
-
-                            /*
                             // If the buffer fails for the normal NES header,
                             // try again with first byte of FDS header
                             if (buffer[0] == FDS_HEADER_CHECK[0])
                             {
-                                Array.Copy(buffer, headerBuffer, NES_HEADER_LENGTH);
+                                Array.Copy(buffer, headerBuffer, FDS_HEADER_LENGTH);
 
                                 bool headerValid = true;
 
@@ -220,21 +170,19 @@ namespace WiiuVcExtractor.RomExtractors
                                 if (headerValid)
                                 {
                                     // The rom position is a header length before the current stream position
-                                    romPosition = br.BaseStream.Position - NES_HEADER_LENGTH;
+                                    romPosition = br.BaseStream.Position - FDS_HEADER_LENGTH;
                                     vcNamePosition = romPosition - 16;
-                                    Array.Copy(headerBuffer, 0, nesRomHeader, 0, NES_HEADER_LENGTH);
-                                    Console.WriteLine("NES Rom Detected!");
-                                    isFDS = true;
+                                    Array.Copy(headerBuffer, 0, fdsRomHeader, 0, FDS_HEADER_LENGTH);
+                                    Console.WriteLine("Famicom Disk System Rom Detected!");
                                     return true;
                                 }
                             }
-                            */
                         }
                     }
                 }
             }
 
-            Console.WriteLine("Not an NES or FDS VC Title");
+            Console.WriteLine("Not an FDS VC Title");
 
             return false;
         }

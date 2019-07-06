@@ -63,6 +63,7 @@
     <Compile Include="RomExtractors\GbaVcExtractor.cs" />
     <Compile Include="RomExtractors\IRomExtractor.cs" />
     <Compile Include="Libraries\mt19937ar.cs" />
+    <Compile Include="RomExtractors\FdsVcExtractor.cs" />
     <Compile Include="RomExtractors\NesVcExtractor.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
