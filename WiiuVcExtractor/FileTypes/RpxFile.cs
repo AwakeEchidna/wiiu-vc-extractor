@@ -52,7 +52,7 @@ namespace WiiuVcExtractor.FileTypes
 
             header = new RpxHeader(path);
 
-            // Begins writing header to *.rpx.extract
+            // Begin writing header to *.rpx.extract
             using (FileStream fs = new FileStream(decompressedPath, FileMode.OpenOrCreate, FileAccess.Write))
             {
                 using (BinaryWriter bw = new BinaryWriter(fs, new ASCIIEncoding()))
