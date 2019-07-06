@@ -57,19 +57,34 @@ namespace WiiuVcExtractor.FileTypes
                 using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
                 {
                     // Read in the header
+                    //
+                    // read first 16 bytes
                     identity = br.ReadBytes(ELF_SIGNATURE_LENGTH);
+                    // read next 2 bytes (offsets 0x10 and 0x11)
                     type = EndianUtility.ReadUInt16BE(br);
+                    // read offset 0x13
                     machine = EndianUtility.ReadUInt16BE(br);
+                    // read offset 0x17
                     version = EndianUtility.ReadUInt32BE(br);
+                    // read offsets 0x18 through 0x1B
                     entryPoint = EndianUtility.ReadUInt32BE(br);
+                    // read ? (the value is zero)
                     phOffset = EndianUtility.ReadUInt32BE(br);
+                    // read offset 0x23
                     shOffset = EndianUtility.ReadUInt32BE(br);
+                    // read ? (the value is zero)
                     flags = EndianUtility.ReadUInt32BE(br);
+                    // read offset 0x29
                     ehSize = EndianUtility.ReadUInt16BE(br);
+                    // read ? (the value is zero)
                     phEntSize = EndianUtility.ReadUInt16BE(br);
+                    // read ? (the value is zero)
                     phNum = EndianUtility.ReadUInt16BE(br);
+                    // read offset 0x2F
                     shEntSize = EndianUtility.ReadUInt16BE(br);
+                    // read offset 0x31
                     shNum = EndianUtility.ReadUInt16BE(br);
+                    // read offset 0x33
                     shStrIndex = EndianUtility.ReadUInt16BE(br);
                 }
             }
