@@ -70,7 +70,7 @@ namespace WiiuVcExtractor.FileTypes
                     entryPoint = EndianUtility.ReadUInt32BE(br);
                     // read ? (the value is zero)
                     phOffset = EndianUtility.ReadUInt32BE(br);
-                    // read offset 0x23
+                    // read offset 0x23 - value should be 0x40 / 64
                     shOffset = EndianUtility.ReadUInt32BE(br);
                     // read ? (the value is zero)
                     flags = EndianUtility.ReadUInt32BE(br);
