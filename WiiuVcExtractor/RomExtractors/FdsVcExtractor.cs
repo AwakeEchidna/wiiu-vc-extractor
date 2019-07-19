@@ -9,7 +9,7 @@ namespace WiiuVcExtractor.RomExtractors
     public class FdsVcExtractor : IRomExtractor
     {
         // Famicom Disk System header
-        private static readonly byte[] FDS_HEADER_CHECK = { 0x01, 0x2A, 0x4E,
+        private static readonly byte[] FDS_HEADER_CHECK = {0x01, 0x2A, 0x4E,
             0x49, 0x4E, 0x54, 0x45, 0x4E, 0x44, 0x4F, 0x2D, 0x48, 0x56, 0x43,
             0x2A, 0x01};
         private const int FDS_HEADER_LENGTH = 16;
@@ -33,9 +33,18 @@ namespace WiiuVcExtractor.RomExtractors
         private long vcNamePosition;
 
         private byte[] fdsRomHeader;
-        private byte[] nesRomData;
+        private byte[] fdsRomData;
 
         private bool verbose;
+
+        // byte array containing offsets of extra pairs of zeros
+        private UInt32[] zerosLL = {0x34, 0x35, 0x3C, 0x3D, 0x4E, 0x4F, 0x131,
+            0x132, 0x143, 0x144, 0x2146, 0x2147, 0x2158, 0x2159, 0x219B, 0x219C,
+            0x21AD, 0x21AE, 0xA1b0, 0xa1b1, 0xa1c2, 0xa1c3, 0xaff4, 0xaff5,
+            0xb006, 0xb007, 0xbcd8, 0xbcd9, 0xbcea, 0xbceb, 0xcc39, 0xcc3a,
+            0xcc4b, 0xcc4c};
+
+        private bool isLL = false;
 
         public FdsVcExtractor(RpxFile rpxFile, bool verbose = false)
         {
@@ -81,6 +90,11 @@ namespace WiiuVcExtractor.RomExtractors
                             romName = Console.ReadLine();
                         }
 
+                        if(vcName.Equals("WUP-FA9E"))
+                        {
+                            isLL = true;
+                        }
+
                         Console.WriteLine("Virtual Console Title: " + vcName);
                         Console.WriteLine("FDS Title: " + romName);
 
@@ -92,31 +106,30 @@ namespace WiiuVcExtractor.RomExtractors
                         // read past it
                         br.ReadBytes(FDS_HEADER_LENGTH);
 
-                        //
                         // TODO:
                         // 1 - determine if disk has 1 or 2 sides
-                        //   - probably only 1, as 2 would need to be flipped
+                        //    - probably only 1, as 2 would need to be flipped
                         // 2 - determine size
-                        //   - should be 65500 bytes
+                        //    - should be 65500 bytes
                         //
                         // Determine the FDS rom's size
-                        Console.WriteLine("Getting number of PRG and CHR pages...");
-
-                        byte prgPages = fdsRomHeader[PRG_PAGE_OFFSET];
-                        byte chrPages = fdsRomHeader[CHR_PAGE_OFFSET];
-
-                        Console.WriteLine("PRG Pages: " + prgPages);
-                        Console.WriteLine("CHR Pages: " + chrPages);
-
-                        int prgPageSize = prgPages * PRG_PAGE_SIZE;
-                        int chrPageSize = chrPages * CHR_PAGE_SIZE;
-
-                        // All FDS roms are 65500 bytes
+                       
+                        // All FDS disks are 65500 bytes, 
+                        // but Lost Levels has 34 extra zeros
                         int romSize = 65500;
+                        int zeroSize = 65534;
                         Console.WriteLine("Total FDS rom size: " + romSize + " Bytes");
 
                         Console.WriteLine("Getting rom data...");
-                        nesRomData = br.ReadBytes(romSize - FDS_HEADER_LENGTH);
+
+                        if (isLL)
+                        {
+                            fdsRomData = br.ReadBytes(zeroSize - FDS_HEADER_LENGTH);
+                        }
+                        else
+                        {
+                            fdsRomData = br.ReadBytes(romSize - FDS_HEADER_LENGTH);
+                        }
 
                         Console.WriteLine("Writing to " + extractedRomPath + "...");
 
@@ -125,8 +138,63 @@ namespace WiiuVcExtractor.RomExtractors
                         {
                             Console.WriteLine("Writing FDS rom header...");
                             bw.Write(fdsRomHeader, 0, FDS_HEADER_LENGTH);
+
                             Console.WriteLine("Writing FDS rom data...");
-                            bw.Write(nesRomData);
+
+                            // if Lost Levels, remove zeros
+                            //
+                            // potentially remove condition if all FDS games
+                            // have zeros
+                            if (isLL)
+                            {
+                                byte[] tempFdsRomData = new byte[romSize - FDS_HEADER_LENGTH];
+
+                                // reduce offsets by header-length to account for
+                                // size of fdsRomData
+                                //for(int i = 0; i < zerosLL.Length; i++)
+                                //{
+                                 //   zerosLL[i] -= FDS_HEADER_LENGTH;
+                                //}
+
+                                /*
+                                int skip = 0;
+                                // iterate through both tempFdsRomData
+                                // and fdsRomData, skipping zeros
+                                for(int t = 0; t < tempFdsRomData.Length; t++)
+                                {
+                                    if (t == zerosLL[skip])
+                                    {
+                                        skip++;
+                                    }
+                                    tempFdsRomData[t] = fdsRomData[t+skip];
+                                }
+                                */
+
+                                Buffer.BlockCopy(fdsRomData, 0, tempFdsRomData, 0, 36);
+                                Buffer.BlockCopy(fdsRomData, 38, tempFdsRomData, 36, 6);
+                                Buffer.BlockCopy(fdsRomData, 46, tempFdsRomData, 42, 16);
+                                Buffer.BlockCopy(fdsRomData, 64, tempFdsRomData, 58, 225);
+                                Buffer.BlockCopy(fdsRomData, 291, tempFdsRomData, 283, 16);
+                                Buffer.BlockCopy(fdsRomData, 309, tempFdsRomData, 299, 8193);
+                                Buffer.BlockCopy(fdsRomData, 8504, tempFdsRomData, 8492, 16);
+                                Buffer.BlockCopy(fdsRomData, 8522, tempFdsRomData, 8508, 65);
+                                Buffer.BlockCopy(fdsRomData, 8589, tempFdsRomData, 8573, 16);
+                                Buffer.BlockCopy(fdsRomData, 8607, tempFdsRomData, 8589, 32769);
+                                Buffer.BlockCopy(fdsRomData, 41378, tempFdsRomData, 41358, 16);
+                                Buffer.BlockCopy(fdsRomData, 41396, tempFdsRomData, 41374, 3632);
+                                Buffer.BlockCopy(fdsRomData, 45030, tempFdsRomData, 45006, 16);
+                                Buffer.BlockCopy(fdsRomData, 45048, tempFdsRomData, 45022, 3280);
+                                Buffer.BlockCopy(fdsRomData, 48330, tempFdsRomData, 48302, 16);
+                                Buffer.BlockCopy(fdsRomData, 48348, tempFdsRomData, 48318, 3917);
+                                Buffer.BlockCopy(fdsRomData, 52267, tempFdsRomData, 52235, 16);
+                                Buffer.BlockCopy(fdsRomData, 52285, tempFdsRomData, 52251, romSize - FDS_HEADER_LENGTH - 52251);
+
+                                bw.Write(tempFdsRomData);
+                            }
+                            else
+                            {
+                                bw.Write(fdsRomData);
+                            }
                         }
 
                         Console.WriteLine("Famicom Disk System rom has been " +
@@ -142,7 +210,7 @@ namespace WiiuVcExtractor.RomExtractors
         // Determines if this is a valid FDS ROM
         public bool IsValidRom()
         {
-            Console.WriteLine("Checking if this is an Famicom Disk System VC title...");
+            Console.WriteLine("Checking if this is a Famicom Disk System VC title...");
 
             // First check if this is a valid ELF file:
             if (rpxFile != null)
@@ -202,7 +270,7 @@ namespace WiiuVcExtractor.RomExtractors
                 }
             }
 
-            Console.WriteLine("Not an FDS VC Title");
+            Console.WriteLine("Not a FDS VC Title");
 
             return false;
         }

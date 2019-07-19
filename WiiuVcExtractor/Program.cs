@@ -84,9 +84,7 @@ namespace WiiuVcExtractor
             PsbFile psbFile = null;
 
             // Identfies filetype of the file argument,
-            // Then instantiates file with file's location and verbose or not
-            // (instantiation also leads to the creation of the decompressed
-            // *.rpx.extract file)
+            // then instantiates file with file's location and verbose or not
             if (RpxFile.IsRpx(sourcePath))
             {
                 Console.WriteLine("RPX file detected!");

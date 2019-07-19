@@ -60,31 +60,31 @@ namespace WiiuVcExtractor.FileTypes
                     //
                     // read first 16 bytes
                     identity = br.ReadBytes(ELF_SIGNATURE_LENGTH);
-                    // read next 2 bytes (offsets 0x10 and 0x11)
+                    // read offsets 0x10 0x11
                     type = EndianUtility.ReadUInt16BE(br);
-                    // read offset 0x13
+                    // read offsets 0x12 0x13
                     machine = EndianUtility.ReadUInt16BE(br);
-                    // read offset 0x17
+                    // read offsets 0x14 0x15 0x16 0x17
                     version = EndianUtility.ReadUInt32BE(br);
-                    // read offsets 0x18 through 0x1B
+                    // read offsets 0x18 0x19 0x1A 0x1B
                     entryPoint = EndianUtility.ReadUInt32BE(br);
-                    // read ? (the value is zero)
+                    // read offsets 0x1C 0x1D 0x1E 0x1F (the value is zero)
                     phOffset = EndianUtility.ReadUInt32BE(br);
-                    // read offset 0x23 - value should be 0x40 / 64
+                    // read offsets 0x20 0x21 0x22 0x23 - value should be 0x40 / 64
                     shOffset = EndianUtility.ReadUInt32BE(br);
-                    // read ? (the value is zero)
+                    // read offsets 0x24 0x25 0x26 0x27 (the value is zero)
                     flags = EndianUtility.ReadUInt32BE(br);
-                    // read offset 0x29
+                    // read offsets 0x28 0x29
                     ehSize = EndianUtility.ReadUInt16BE(br);
-                    // read ? (the value is zero)
+                    // read offsets 0x2A 0x2B (the value is zero)
                     phEntSize = EndianUtility.ReadUInt16BE(br);
-                    // read ? (the value is zero)
+                    // read offsets 0x2C 0x2D (the value is zero)
                     phNum = EndianUtility.ReadUInt16BE(br);
-                    // read offset 0x2F
+                    // read offsets 0x2E 0x2F
                     shEntSize = EndianUtility.ReadUInt16BE(br);
-                    // read offset 0x31
+                    // read offsets 0x30 0x31 - value 30
                     shNum = EndianUtility.ReadUInt16BE(br);
-                    // read offset 0x33
+                    // read offsets 0x32 0x33
                     shStrIndex = EndianUtility.ReadUInt16BE(br);
                 }
             }
