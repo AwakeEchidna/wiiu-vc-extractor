@@ -6,6 +6,7 @@ using Ionic.Zlib;
 
 using WiiuVcExtractor.Libraries;
 
+
 namespace WiiuVcExtractor.FileTypes
 {
     public class RpxFile
@@ -76,11 +77,14 @@ namespace WiiuVcExtractor.FileTypes
                     EndianUtility.WriteUInt32BE(bw, 0x00000000);
                     EndianUtility.WriteUInt32BE(bw, 0x00000000);
 
+                    // write zeros up to offset SectionHeaderDataElfOffset
                     while ((ulong)bw.BaseStream.Position < header.SectionHeaderDataElfOffset)
                     {
                         bw.Write((byte)0);
                     }
 
+                    // continue writing zeros until an offset that is a multiple
+                    // of 64 is reached
                     while (bw.BaseStream.Position % 0x40 != 0)
                     {
                         bw.Write((byte)0);
@@ -90,9 +94,9 @@ namespace WiiuVcExtractor.FileTypes
             }
 
             sectionHeaderIndices = new List<RpxSectionHeaderSort>();
-            // From 0x31 in *.rpx.extract, should have capacity of 30
+            // From 0x31 in *.rpx.extract, should have capacity of 0x1E or 30
             sectionHeaders = new List<RpxSectionHeader>(header.SectionHeaderCount);
-            // From 0x31 in *.rpx.extract, should have capacity of 30
+            // From 0x31 in *.rpx.extract, should have capacity of 0x1E or 30
             crcs = new List<uint>(header.SectionHeaderCount);
 
             if (verbose)
@@ -105,7 +109,7 @@ namespace WiiuVcExtractor.FileTypes
                 using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
                 {
                     // Seek to the Section Header Offset in the file,
-                    // should be offset 0x23, value 0x40
+                    // should be offset 0x23
                     br.BaseStream.Seek(header.SectionHeaderOffset,SeekOrigin.Begin);
 
                     // Read in all of the section headers - 30 of them
@@ -113,10 +117,11 @@ namespace WiiuVcExtractor.FileTypes
                     {
                         crcs.Add(0);
 
-                        // Read in the bytes for the section header
+                        // Read in 40 bytes for the section header
                         byte[] buffer = br.ReadBytes(RpxSectionHeader.SECTION_HEADER_LENGTH);
 
-                        // Create a new section header and add it to the list
+                        // Create a new section header using the 40 byte buffer
+                        // and add it to the sectionHeaders list
                         RpxSectionHeader newSectionHeader = new RpxSectionHeader(buffer);
                         sectionHeaders.Add(newSectionHeader);
 
@@ -143,7 +148,14 @@ namespace WiiuVcExtractor.FileTypes
 
             sectionHeaderIndices.Sort();
 
-            // THIS handles the decompression and where *.rpx.extract gets messed up - see txt
+            // THIS handles the decompression and where FDS *.rpx.extract gets 
+            // messed up
+            //
+            // sectionHeaderIndices[2] / sectionHeaders[3] begins at the start 
+            // of the game data, offset 0x6C0 (for FDS/NES games)
+            // and end is at offset 0x249BC4, before 24-byte-long series of zeros
+            //
+            // decompression of gamedata occurs at i=2, where if statement is true
             //
             // Iterate through all of the section header indices
             for (int i = 0; i < sectionHeaderIndices.Count; i++)
@@ -165,6 +177,8 @@ namespace WiiuVcExtractor.FileTypes
 
                         currentSectionHeader.Offset = (uint)br.BaseStream.Position;
 
+                        // Bitwise comparison of Flags and SECTION_HEADER_RPL_ZLIB, 
+                        // then comparison of result to SECTION_HEADER_RPL_ZLIB
                         if ((currentSectionHeader.Flags & RpxSectionHeader.SECTION_HEADER_RPL_ZLIB) == RpxSectionHeader.SECTION_HEADER_RPL_ZLIB)
                         {
                             UInt32 dataSize = currentSectionHeader.Size - 4;
@@ -178,6 +192,7 @@ namespace WiiuVcExtractor.FileTypes
                             compressor.InitializeInflate(true);
                             compressor.AvailableBytesIn = 0;
                             compressor.NextIn = 0;
+
 
                             while (dataSize > 0)
                             {
@@ -273,8 +288,6 @@ namespace WiiuVcExtractor.FileTypes
                 sectionHeaders[(int)sectionHeaderIndices[i].index] = currentSectionHeader;
             }
 
-            // Fully Decompressed before the following
-            //
             // Fix the output headers
             // TODO: This is not currently accurate vs. wiiurpx tool so may need to investigate
             using (FileStream outFs = new FileStream(decompressedPath, FileMode.Open, FileAccess.Write))
