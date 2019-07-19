@@ -189,6 +189,11 @@ namespace WiiuVcExtractor.RomExtractors
                                 Buffer.BlockCopy(fdsRomData, 52267, tempFdsRomData, 52235, 16);
                                 Buffer.BlockCopy(fdsRomData, 52285, tempFdsRomData, 52251, romSize - FDS_HEADER_LENGTH - 52251);
 
+                                // Corrects three incorrect bytes
+                                tempFdsRomData[8768] = 0x58;
+                                tempFdsRomData[33471] = 0x4A;
+                                tempFdsRomData[33481] = 0x4A;
+
                                 bw.Write(tempFdsRomData);
                             }
                             else
