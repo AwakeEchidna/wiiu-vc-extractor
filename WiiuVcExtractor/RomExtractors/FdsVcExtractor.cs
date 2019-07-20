@@ -38,13 +38,6 @@ namespace WiiuVcExtractor.RomExtractors
 
         private bool verbose;
 
-        // byte array containing offsets of extra pairs of zeros
-        private UInt32[] zerosLL = {0x34, 0x35, 0x3C, 0x3D, 0x4E, 0x4F, 0x131,
-            0x132, 0x143, 0x144, 0x2146, 0x2147, 0x2158, 0x2159, 0x219B, 0x219C,
-            0x21AD, 0x21AE, 0xA1b0, 0xa1b1, 0xa1c2, 0xa1c3, 0xaff4, 0xaff5,
-            0xb006, 0xb007, 0xbcd8, 0xbcd9, 0xbcea, 0xbceb, 0xcc39, 0xcc3a,
-            0xcc4b, 0xcc4c};
-
         private bool isLL = false;
 
         public FdsVcExtractor(RpxFile rpxFile, bool verbose = false)
@@ -113,7 +106,7 @@ namespace WiiuVcExtractor.RomExtractors
                         // but these are in QD format, which is either
                         // 0x10000 or 0x20000 in length, depending on $ of disks
                         //
-                        // Since these are Wii U VC titles, they are 1 disk
+                        // Since these are Wii U VC titles, they should have 1 disk
                         int romSize = 65500;
 
                         Console.WriteLine("Total FDS rom size: " + romSize + " Bytes");
