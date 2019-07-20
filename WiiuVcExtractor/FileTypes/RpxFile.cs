@@ -94,9 +94,7 @@ namespace WiiuVcExtractor.FileTypes
             }
 
             sectionHeaderIndices = new List<RpxSectionHeaderSort>();
-            // From 0x31 in *.rpx.extract, should have capacity of 0x1E or 30
             sectionHeaders = new List<RpxSectionHeader>(header.SectionHeaderCount);
-            // From 0x31 in *.rpx.extract, should have capacity of 0x1E or 30
             crcs = new List<uint>(header.SectionHeaderCount);
 
             if (verbose)
@@ -108,11 +106,10 @@ namespace WiiuVcExtractor.FileTypes
             {
                 using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
                 {
-                    // Seek to the Section Header Offset in the file,
-                    // should be offset 0x23
+                    // Seek to the Section Header Offset in the file
                     br.BaseStream.Seek(header.SectionHeaderOffset,SeekOrigin.Begin);
 
-                    // Read in all of the section headers - 30 of them
+                    // Read in all of the section headers
                     for (UInt32 i = 0; i < header.SectionHeaderCount; i++)
                     {
                         crcs.Add(0);
@@ -148,15 +145,6 @@ namespace WiiuVcExtractor.FileTypes
 
             sectionHeaderIndices.Sort();
 
-            // THIS handles the decompression and where FDS *.rpx.extract gets 
-            // messed up
-            //
-            // sectionHeaderIndices[2] / sectionHeaders[3] begins at the start 
-            // of the game data, offset 0x6C0 (for FDS/NES games)
-            // and end is at offset 0x249BC4, before 24-byte-long series of zeros
-            //
-            // decompression of gamedata occurs at i=2, where if statement is true
-            //
             // Iterate through all of the section header indices
             for (int i = 0; i < sectionHeaderIndices.Count; i++)
             {
@@ -177,8 +165,6 @@ namespace WiiuVcExtractor.FileTypes
 
                         currentSectionHeader.Offset = (uint)br.BaseStream.Position;
 
-                        // Bitwise comparison of Flags and SECTION_HEADER_RPL_ZLIB, 
-                        // then comparison of result to SECTION_HEADER_RPL_ZLIB
                         if ((currentSectionHeader.Flags & RpxSectionHeader.SECTION_HEADER_RPL_ZLIB) == RpxSectionHeader.SECTION_HEADER_RPL_ZLIB)
                         {
                             UInt32 dataSize = currentSectionHeader.Size - 4;
