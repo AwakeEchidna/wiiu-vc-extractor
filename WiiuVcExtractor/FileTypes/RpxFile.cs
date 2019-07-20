@@ -6,7 +6,6 @@ using Ionic.Zlib;
 
 using WiiuVcExtractor.Libraries;
 
-
 namespace WiiuVcExtractor.FileTypes
 {
     public class RpxFile
@@ -53,7 +52,6 @@ namespace WiiuVcExtractor.FileTypes
 
             header = new RpxHeader(path);
 
-            // Begin writing header to *.rpx.extract
             using (FileStream fs = new FileStream(decompressedPath, FileMode.OpenOrCreate, FileAccess.Write))
             {
                 using (BinaryWriter bw = new BinaryWriter(fs, new ASCIIEncoding()))
@@ -77,14 +75,11 @@ namespace WiiuVcExtractor.FileTypes
                     EndianUtility.WriteUInt32BE(bw, 0x00000000);
                     EndianUtility.WriteUInt32BE(bw, 0x00000000);
 
-                    // write zeros up to offset SectionHeaderDataElfOffset
                     while ((ulong)bw.BaseStream.Position < header.SectionHeaderDataElfOffset)
                     {
                         bw.Write((byte)0);
                     }
 
-                    // continue writing zeros until an offset that is a multiple
-                    // of 64 is reached
                     while (bw.BaseStream.Position % 0x40 != 0)
                     {
                         bw.Write((byte)0);
@@ -114,11 +109,10 @@ namespace WiiuVcExtractor.FileTypes
                     {
                         crcs.Add(0);
 
-                        // Read in 40 bytes for the section header
+                        // Read in the bytes for the section header
                         byte[] buffer = br.ReadBytes(RpxSectionHeader.SECTION_HEADER_LENGTH);
 
-                        // Create a new section header using the 40 byte buffer
-                        // and add it to the sectionHeaders list
+                        // Create a new section header and add it to the list
                         RpxSectionHeader newSectionHeader = new RpxSectionHeader(buffer);
                         sectionHeaders.Add(newSectionHeader);
 
@@ -178,7 +172,6 @@ namespace WiiuVcExtractor.FileTypes
                             compressor.InitializeInflate(true);
                             compressor.AvailableBytesIn = 0;
                             compressor.NextIn = 0;
-
 
                             while (dataSize > 0)
                             {
