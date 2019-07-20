@@ -1,10 +1,7 @@
 # wiiu-vc-extractor
 Extracts Wii U Virtual Console roms from dumps created via [DDD](https://github.com/dimok789/ddd/releases) or from the SNES Mini.
 
-This currently only supports extracting GBA, NES, FDS, and SNES roms. 
-# Note:
-- Most VC titles are not clean roms but have been modified from their original state.
-- Famicom Disk System games are not playable, but can be hex-edited to be playable.
+This currently only supports extracting GBA, NES, FDS, and SNES roms. Note that most VC titles are not clean roms but have been modified from their original state.
 
 ## Installation
 ### Windows
@@ -196,3 +193,5 @@ alldata.psb.m has been extracted to Advance Wars.gba successfully.
 Decompression of rpx files is possible due to the following tool created by 0CBH0: https://github.com/0CBH0/wiiurpxtool
 
 Decompression and decryption of psb.m files is possible due to research and code created by ajd4096: https://github.com/ajd4096/inject_gba
+
+Extraction of Famicom Disk System games made possible by einstein95: https://gist.github.com/einstein95/6545066905680466cdf200c4cc8ca4f0
