@@ -99,7 +99,7 @@ namespace WiiuVcExtractor.RomExtractors
                         int romSize = prgPageSize + chrPageSize + NES_HEADER_LENGTH;
                         Console.WriteLine("Total NES rom size: " + romSize + " Bytes");
 
-
+                        // Fix the NES header
                         Console.WriteLine("Fixing VC NES Header...");
                         nesRomHeader[BROKEN_NES_HEADER_OFFSET] = CHARACTER_BREAK;
 
@@ -125,7 +125,6 @@ namespace WiiuVcExtractor.RomExtractors
             return extractedRomPath;
         }
 
-        // Determines if this is a valid NES ROM
         public bool IsValidRom()
         {
             Console.WriteLine("Checking if this is an NES VC title...");
@@ -151,8 +150,7 @@ namespace WiiuVcExtractor.RomExtractors
                         {
                             byte[] buffer = br.ReadBytes(NES_HEADER_LENGTH);
 
-                            // If the buffer matches the first byte of the NES 
-                            // header, check the following 15 bytes
+                            // If the buffer matches the first byte of the NES header, check the following 15 bytes
                             if (buffer[0] == NES_HEADER_CHECK[0])
                             {
                                 Array.Copy(buffer, headerBuffer, NES_HEADER_LENGTH);
