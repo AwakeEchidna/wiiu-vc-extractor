@@ -163,3 +163,5 @@ alldata.psb.m has been extracted to Advance Wars.gba successfully.
 Decompression of rpx files is possible due to the following tool created by 0CBH0: https://github.com/0CBH0/wiiurpxtool
 
 Decompression and decryption of psb.m files is possible due to research and code created by ajd4096: https://github.com/ajd4096/inject_gba
+
+Extraction of Famicom Disk System games made possible by einstein95: https://gist.github.com/einstein95/6545066905680466cdf200c4cc8ca4f0
