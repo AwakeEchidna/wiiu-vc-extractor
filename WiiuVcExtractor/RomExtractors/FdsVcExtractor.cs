@@ -34,6 +34,7 @@ namespace WiiuVcExtractor.RomExtractors
 
         private byte[] fdsRomHeader;
         private byte[] fdsRomData;
+        private byte[] fullGameData;
 
         private bool verbose;
 
@@ -106,100 +107,88 @@ namespace WiiuVcExtractor.RomExtractors
                         // read past it
                         br.ReadBytes(FDS_HEADER_LENGTH);
 
-                        // TODO:
-                        // 1 - determine if disk has 1 or 2 sides
-                        //    - probably only 1, as 2 would need to be flipped
-                        // 2 - determine size
-                        //    - should be 65500 bytes
-                        //
                         // Determine the FDS rom's size
-                       
+                        //
                         // All FDS disks are 65500 bytes, 
-                        // but Lost Levels has 34 extra zeros
+                        // but these are in QD format, which is either
+                        // 0x10000 or 0x20000 in length, depending on $ of disks
+                        //
+                        // Since these are Wii U VC titles, they are 1 disk
                         int romSize = 65500;
-                        int zeroSize = 65534;
+
                         Console.WriteLine("Total FDS rom size: " + romSize + " Bytes");
 
                         Console.WriteLine("Getting rom data...");
 
-                        if (isLL)
-                        {
-                            fdsRomData = br.ReadBytes(zeroSize - FDS_HEADER_LENGTH);
-                        }
-                        else
-                        {
-                            fdsRomData = br.ReadBytes(romSize - FDS_HEADER_LENGTH);
-                        }
+                        fdsRomData = br.ReadBytes(romSize - FDS_HEADER_LENGTH);
+
+                        fullGameData = new byte[romSize];
+                        Buffer.BlockCopy(fdsRomHeader, 0, fullGameData, 0, fdsRomHeader.Length);
+                        Buffer.BlockCopy(fdsRomData, 0, fullGameData, fdsRomHeader.Length, fdsRomData.Length);
 
                         Console.WriteLine("Writing to " + extractedRomPath + "...");
 
                         using (BinaryWriter bw = new BinaryWriter(File.Open(
                             extractedRomPath, FileMode.Create)))
                         {
-                            Console.WriteLine("Writing FDS rom header...");
-                            bw.Write(fdsRomHeader, 0, FDS_HEADER_LENGTH);
-
-                            Console.WriteLine("Writing FDS rom data...");
-
-                            // if Lost Levels, remove zeros
+                            // Convert QD to FDS
                             //
-                            // potentially remove condition if all FDS games
-                            // have zeros
+                            // Remove bytes at offsets 0x38 and 0x39
+                            for (int i = 0x38; i + 2 < fullGameData.Length; i++)
+                            {
+                                fullGameData[i] = fullGameData[i + 2];
+                                fullGameData[i + 2] = 0;
+                            }
+
+                            int position = 0x3A;
+
+                            try
+                            {
+                                while(fullGameData[position+2] == 3)
+                                {
+                                    // Delete 2 bytes
+                                    for(int i = position; i+2 < fullGameData.Length; i++)
+                                    {
+                                        fullGameData[i] = fullGameData[i + 2];
+                                        fullGameData[i + 2] = 0;
+                                    }
+
+                                    int end2 = fullGameData[position + 0xD];
+                                    int end1 = fullGameData[position + 0xE];
+                                    string fileSizeText = end1.ToString("X2") + end2.ToString("X2");
+                                    int fileSize = int.Parse(fileSizeText, System.Globalization.NumberStyles.HexNumber);
+
+                                    // Delete 2 bytes
+                                    for (int i = position + 0x10; i + 2 < fullGameData.Length; i++)
+                                    {
+                                        fullGameData[i] = fullGameData[i + 2];
+                                        fullGameData[i + 2] = 0;
+                                    }
+
+                                    position += 0x11 + fileSize;
+                                }
+                            }
+                            catch (IndexOutOfRangeException)
+                            {
+                            }
+
+                            // Delete 2 bytes
+                            for (int i = position; i + 2 < fullGameData.Length; i++)
+                            {
+                                fullGameData[i] = fullGameData[i + 2];
+                                fullGameData[i + 2] = 0;
+                            }
+
+                            // if Lost Levels, correct three bytes
                             if (isLL)
                             {
-                                byte[] tempFdsRomData = new byte[romSize - FDS_HEADER_LENGTH];
-
-                                // reduce offsets by header-length to account for
-                                // size of fdsRomData
-                                //for(int i = 0; i < zerosLL.Length; i++)
-                                //{
-                                 //   zerosLL[i] -= FDS_HEADER_LENGTH;
-                                //}
-
-                                /*
-                                int skip = 0;
-                                // iterate through both tempFdsRomData
-                                // and fdsRomData, skipping zeros
-                                for(int t = 0; t < tempFdsRomData.Length; t++)
-                                {
-                                    if (t == zerosLL[skip])
-                                    {
-                                        skip++;
-                                    }
-                                    tempFdsRomData[t] = fdsRomData[t+skip];
-                                }
-                                */
-                                /*
-                                Buffer.BlockCopy(fdsRomData, 0, tempFdsRomData, 0, 36);
-                                Buffer.BlockCopy(fdsRomData, 38, tempFdsRomData, 36, 6);
-                                Buffer.BlockCopy(fdsRomData, 46, tempFdsRomData, 42, 16);
-                                Buffer.BlockCopy(fdsRomData, 64, tempFdsRomData, 58, 225);
-                                Buffer.BlockCopy(fdsRomData, 291, tempFdsRomData, 283, 16);
-                                Buffer.BlockCopy(fdsRomData, 309, tempFdsRomData, 299, 8193);
-                                Buffer.BlockCopy(fdsRomData, 8504, tempFdsRomData, 8492, 16);
-                                Buffer.BlockCopy(fdsRomData, 8522, tempFdsRomData, 8508, 65);
-                                Buffer.BlockCopy(fdsRomData, 8589, tempFdsRomData, 8573, 16);
-                                Buffer.BlockCopy(fdsRomData, 8607, tempFdsRomData, 8589, 32769);
-                                Buffer.BlockCopy(fdsRomData, 41378, tempFdsRomData, 41358, 16);
-                                Buffer.BlockCopy(fdsRomData, 41396, tempFdsRomData, 41374, 3632);
-                                Buffer.BlockCopy(fdsRomData, 45030, tempFdsRomData, 45006, 16);
-                                Buffer.BlockCopy(fdsRomData, 45048, tempFdsRomData, 45022, 3280);
-                                Buffer.BlockCopy(fdsRomData, 48330, tempFdsRomData, 48302, 16);
-                                Buffer.BlockCopy(fdsRomData, 48348, tempFdsRomData, 48318, 3917);
-                                Buffer.BlockCopy(fdsRomData, 52267, tempFdsRomData, 52235, 16);
-                                Buffer.BlockCopy(fdsRomData, 52285, tempFdsRomData, 52251, romSize - FDS_HEADER_LENGTH - 52251);
-                                */
-                                // Corrects three incorrect bytes
-                                tempFdsRomData[8768] = 0x58;
-                                tempFdsRomData[33471] = 0x4A;
-                                tempFdsRomData[33481] = 0x4A;
-
-                                bw.Write(tempFdsRomData);
+                                fullGameData[8784] = 0x58;
+                                fullGameData[33487] = 0x4A;
+                                fullGameData[33497] = 0x4A;
                             }
-                            else
-                            {
-                                bw.Write(fdsRomData);
-                            }
+
+                            Console.WriteLine("Writing rom data...");
+                            bw.Write(fullGameData);
                         }
 
                         Console.WriteLine("Famicom Disk System rom has been " +
