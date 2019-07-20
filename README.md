@@ -77,6 +77,36 @@ WUP-FCSE.rpx has been extracted to MEGA MAN 6.nes successfully.
 ============================================================================
 ```
 
+### FDS Extraction
+```
+WiiuVcExtractor.exe WUP-FA9E.rpx
+============================================================================
+Starting extraction of rom from WUP-FA9E.rpx...
+============================================================================
+RPX file detected!
+Decompressing RPX file...
+Decompression complete.
+Checking if this is an NES VC title...
+Checking WUP-FA9E.rpx.extract...
+Not an NES VC Title
+Checking if this is an SNES VC title...
+Checking WUP-FA9E.rpx.extract...
+Checking for the SNES WUP header
+Not an SNES VC Title
+Checking if this is a Famicom Disk System VC title...
+Checking WUP-FA9E.rpx.extract...
+Famicom Disk System Rom Detected!
+Virtual Console Title: WUP-FA9E
+FDS Title: Super Mario Bros The Lost Levels
+Total FDS rom size: 65500 Bytes
+Getting rom data...
+Writing to Super Mario Bros The Lost Levels.fds...
+Writing rom data...
+============================================================================
+Famicom Disk System rom has been created successfully at Super Mario Bros The Lost Levels.fds
+============================================================================
+```
+
 ### SNES Extraction (rpx)
 ```
 ============================================================================
