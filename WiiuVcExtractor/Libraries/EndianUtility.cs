@@ -118,5 +118,20 @@ namespace WiiuVcExtractor.Libraries
                 str = str + ch;
             return str;
         }
+
+        public static string ReadNullTerminatedString(this byte[] bytes)
+        {
+            string str = "";
+
+            using (MemoryStream ms = new MemoryStream(bytes))
+            {
+                using (BinaryReader br = new BinaryReader(ms))
+                {
+                    str = br.ReadNullTerminatedString();
+                }
+            }
+
+            return str;
+        }
     }
 }

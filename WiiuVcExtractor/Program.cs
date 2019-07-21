@@ -8,7 +8,7 @@ namespace WiiuVcExtractor
 {
     class Program
     {
-        private const string WIIU_VC_EXTRACTOR_VERSION = "0.6.0";
+        private const string WIIU_VC_EXTRACTOR_VERSION = "0.7.0";
 
         static void PrintUsage()
         {
@@ -29,6 +29,7 @@ namespace WiiuVcExtractor
             Console.WriteLine("wiiuvcextractor alldata.psb.m");
             Console.WriteLine("wiiuvcextractor WUP-FAME.rpx");
             Console.WriteLine("wiiuvcextractor CLV-P-SAAAE.sfrom");
+            Console.WriteLine("wiiuvcextractor pce.pkg");
             Console.WriteLine("wiiuvcextractor -v WUP-JBBE.rpx");
         }
 
@@ -82,6 +83,7 @@ namespace WiiuVcExtractor
 
             RpxFile rpxFile = null;
             PsbFile psbFile = null;
+            PkgFile pkgFile = null;
 
             // Identifies filetype of the file argument,
             // then instantiates file with file's location and verbose
@@ -94,6 +96,10 @@ namespace WiiuVcExtractor
             {
                 Console.WriteLine("PSB file detected!");
                 psbFile = new PsbFile(sourcePath);
+            }
+            else if (PkgFile.IsPkg(sourcePath))
+            {
+                pkgFile = new PkgFile(sourcePath, verbose);
             }
 
             // Create the list of rom extractors
@@ -108,6 +114,10 @@ namespace WiiuVcExtractor
             else if (psbFile != null)
             {
                 romExtractors.Add(new GbaVcExtractor(psbFile, verbose));
+            }
+            else if (pkgFile != null)
+            {
+                romExtractors.Add(new PceVcExtractor(pkgFile, verbose));
             }
             else if (Path.GetExtension(sourcePath) == ".sfrom")
             {
