@@ -243,7 +243,7 @@ namespace WiiuVcExtractor.FileTypes
                                 crcs[(int)sectionHeaderIndices[i].index] = Crc32Rpx(crcs[(int)sectionHeaderIndices[i].index], data, blockSize);
                             }
                         }
-
+                        
                         // Pad out the section on a 0x40 byte boundary
                         using (FileStream outFs = new FileStream(decompressedPath, FileMode.Append))
                         {
@@ -255,7 +255,7 @@ namespace WiiuVcExtractor.FileTypes
                                 }
                             }
                         }
-
+                        
                         if ((currentSectionHeader.Type & RpxSectionHeader.SECTION_HEADER_RPL_CRCS) == RpxSectionHeader.SECTION_HEADER_RPL_CRCS)
                         {
                             crcs[(int)sectionHeaderIndices[i].index] = 0;

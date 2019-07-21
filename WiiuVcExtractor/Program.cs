@@ -83,6 +83,8 @@ namespace WiiuVcExtractor
             RpxFile rpxFile = null;
             PsbFile psbFile = null;
 
+            // Identfies filetype of the file argument,
+            // then instantiates file with file's location and verbose
             if (RpxFile.IsRpx(sourcePath))
             {
                 Console.WriteLine("RPX file detected!");
@@ -101,6 +103,7 @@ namespace WiiuVcExtractor
             {
                 romExtractors.Add(new NesVcExtractor(rpxFile, verbose));
                 romExtractors.Add(new SnesVcExtractor(rpxFile.DecompressedPath, verbose));
+                romExtractors.Add(new FdsVcExtractor(rpxFile, verbose));
             }
             else if (psbFile != null)
             {
@@ -111,6 +114,8 @@ namespace WiiuVcExtractor
                 romExtractors.Add(new SnesVcExtractor(sourcePath, verbose));
             }
 
+            // Check with each extractor until a valid rom is found,
+            // Then extract the rom with the appropriate extractor
             foreach (var romExtractor in romExtractors)
             {
                 if (romExtractor.IsValidRom())
