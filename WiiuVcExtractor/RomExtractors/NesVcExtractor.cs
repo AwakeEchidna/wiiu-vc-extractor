@@ -183,7 +183,6 @@ namespace WiiuVcExtractor.RomExtractors
                         }
                     }
                 }
-
             }
 
             Console.WriteLine("Not an NES VC Title");
