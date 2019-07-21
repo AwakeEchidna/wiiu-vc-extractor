@@ -8,7 +8,7 @@ namespace WiiuVcExtractor
 {
     class Program
     {
-        private const string WIIU_VC_EXTRACTOR_VERSION = "0.5.1";
+        private const string WIIU_VC_EXTRACTOR_VERSION = "0.6.0";
 
         static void PrintUsage()
         {
@@ -83,7 +83,7 @@ namespace WiiuVcExtractor
             RpxFile rpxFile = null;
             PsbFile psbFile = null;
 
-            // Identfies filetype of the file argument,
+            // Identifies filetype of the file argument,
             // then instantiates file with file's location and verbose
             if (RpxFile.IsRpx(sourcePath))
             {
