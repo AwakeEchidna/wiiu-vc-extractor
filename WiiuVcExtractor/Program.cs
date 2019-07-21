@@ -83,7 +83,7 @@ namespace WiiuVcExtractor
             RpxFile rpxFile = null;
             PsbFile psbFile = null;
 
-            // Identfies filetype of the file argument,
+            // Identifies filetype of the file argument,
             // then instantiates file with file's location and verbose
             if (RpxFile.IsRpx(sourcePath))
             {
@@ -93,7 +93,7 @@ namespace WiiuVcExtractor
             else if (PsbFile.IsPsb(sourcePath))
             {
                 Console.WriteLine("PSB file detected!");
-                psbFile = new PsbFile(sourcePath);
+                psbFile = new PsbFile(sourcePath, verbose);
             }
 
             // Create the list of rom extractors
