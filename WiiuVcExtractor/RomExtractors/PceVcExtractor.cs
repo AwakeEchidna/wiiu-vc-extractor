@@ -22,15 +22,49 @@ namespace WiiuVcExtractor.RomExtractors
 
         public string ExtractRom()
         {
+            if (verbose)
+            {
+                Console.WriteLine("Extracting rom from PKG file...");
+                Console.WriteLine("Determining type of rom within PKG file (.pce or CD)");
+            }
+
             // Find any PCE files within the pkg file and write them to complete extraction
             PkgContentFile pceFile = pkgFile.ContentFiles.Find(x => Path.GetExtension(x.Path).ToLower() == ".pce");
             if (pceFile != null)
             {
+                if (verbose)
+                {
+                    Console.WriteLine(".pce file found!");
+                }
+
                 pceFile.Write();
                 return pceFile.Path;
             }
 
             // If no PCE files exist, attempt to find and process an HCD file and recombine all content files into a usable format
+            PkgContentFile hcdFile = pkgFile.ContentFiles.Find(x => Path.GetExtension(x.Path).ToLower() == ".hcd");
+            if (hcdFile != null)
+            {
+                if (verbose)
+                {
+                    Console.WriteLine(".hcd file found!");
+                }
+
+                // .hcd file was found, create files for all content files
+                foreach (var contentFile in pkgFile.ContentFiles)
+                {
+                    if (verbose)
+                    {
+                        Console.WriteLine("Extracting {0}...", contentFile.Path);
+                    }
+                    contentFile.Write();
+                }
+
+                // TODO: Generate a .cue file for everything
+
+                return hcdFile.Path;
+            }
+
 
             return "";
         }
