@@ -1,7 +1,7 @@
 # wiiu-vc-extractor
 Extracts Wii U Virtual Console roms from dumps created via [DDD](https://github.com/dimok789/ddd/releases) or from the SNES Mini.
 
-This currently only supports extracting GBA, NES, FDS, and SNES roms. Note that most VC titles are not clean roms but have been modified from their original state.
+This currently only supports extracting GBA, NES, FDS, PCE, and SNES roms. Note that most VC titles are not clean roms but have been modified from their original state.
 
 ## Installation
 ### Windows
@@ -25,7 +25,7 @@ This currently only supports extracting GBA, NES, FDS, and SNES roms. Note that 
 
 ```
 =====================================
-Wii U Virtual Console Extractor 0.5.1
+Wii U Virtual Console Extractor 0.7.0
 =====================================
 Extracts roms from Virtual Console games dumped by DDD or from the SNES Mini.
 
@@ -41,6 +41,7 @@ Usage Examples:
 wiiuvcextractor alldata.psb.m
 wiiuvcextractor WUP-FAME.rpx
 wiiuvcextractor CLV-P-SAAAE.sfrom
+wiiuvcextractor pce.pkg
 wiiuvcextractor -v WUP-JBBE.rpx
 ```
 
@@ -186,6 +187,21 @@ Writing to Advance Wars.gba...
 GBA rom has been created successfully at Advance Wars.gba
 ============================================================================
 alldata.psb.m has been extracted to Advance Wars.gba successfully.
+============================================================================
+```
+
+### PCE Extraction
+```
+WiiuVcExtractor.exe pce.pkg
+============================================================================
+Starting extraction of rom from pce.pkg...
+============================================================================
+Extracting PKG file...
+Checking if this is a PC Engine VC title...
+PC Engine VC Rom detected! Extension .pce was found in the pce.pkg entry point.
+Writing content file blazinglazers.pce to blazinglazers.pce
+============================================================================
+pce.pkg has been extracted to blazinglazers.pce successfully.
 ============================================================================
 ```
 
