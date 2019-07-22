@@ -30,6 +30,9 @@ namespace WiiuVcExtractor.FileTypes
                 writePath = path;
             }
 
+            // Create the parent directory
+            Directory.CreateDirectory(Directory.GetParent(writePath).ToString());
+
             using (BinaryWriter bw = new BinaryWriter(File.Open(writePath, FileMode.Create)))
             {
                 Console.WriteLine("Writing content file {0} to {1}", path, writePath);
