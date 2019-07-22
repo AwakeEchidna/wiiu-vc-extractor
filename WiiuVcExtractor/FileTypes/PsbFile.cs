@@ -37,7 +37,7 @@ namespace WiiuVcExtractor.FileTypes
             return header.IsValid();
         }
 
-        public PsbFile(string psbFilePath)
+        public PsbFile(string psbFilePath, bool verbose = false)
         {
             try
             {
@@ -56,7 +56,10 @@ namespace WiiuVcExtractor.FileTypes
             names = new List<string>();
             strings = new List<string>();
 
-            //Console.WriteLine(header.ToString());
+            if (verbose)
+            {
+                Console.WriteLine("PSB Header information:\n{0}", header.ToString());
+            }
 
             // Unpack the structures of the file
             UnpackNames();
@@ -80,7 +83,7 @@ namespace WiiuVcExtractor.FileTypes
             binData = File.ReadAllBytes(binPath);
             subfiles = new List<byte[]>();
 
-            SplitSubfiles();
+            SplitSubfiles(verbose);
 
             if (romData != null && !String.IsNullOrEmpty(romName))
             {
@@ -202,7 +205,7 @@ namespace WiiuVcExtractor.FileTypes
             entryTable = new PsbEntryTable(psbData, header.EntriesOffset, names, strings);
         }
 
-        private void SplitSubfiles()
+        private void SplitSubfiles(bool verbose = false)
         {
             using (MemoryStream ms = new MemoryStream(binData))
             {
@@ -217,6 +220,11 @@ namespace WiiuVcExtractor.FileTypes
 
                         ms.Seek(offset, SeekOrigin.Begin);
                         byte[] buffer = br.ReadBytes((int)length);
+
+                        if (verbose)
+                        {
+                            Console.WriteLine("Checking if {0} contains the rom subfile path...", subfileName);
+                        }
 
                         // Check if this is the rom subfile
                         if (subfileName.Contains(ROM_SUBFILE_PATH))

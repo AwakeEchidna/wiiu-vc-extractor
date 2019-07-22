@@ -30,7 +30,7 @@ namespace WiiuVcExtractor.FileTypes
             return header.IsValid();
         }
 
-        public MdfPsbFile(string psbFilePath)
+        public MdfPsbFile(string psbFilePath, bool verbose = false)
         {
             Console.WriteLine("Decompressing PSB file...");
 
@@ -44,7 +44,11 @@ namespace WiiuVcExtractor.FileTypes
             }
 
             mdfHeader = new MdfHeader(path);
-            //Console.WriteLine(mdfHeader.ToString());
+
+            if (verbose)
+            {
+                Console.WriteLine("MDF Header content:\n{0}", mdfHeader.ToString());
+            }
 
             xorKey = GenerateXorKey(path);
 
@@ -138,6 +142,8 @@ namespace WiiuVcExtractor.FileTypes
 
             // Write all of the decompressed data to the decompressedPath
             File.WriteAllBytes(decompressedPath, decompressedData);
+
+            Console.WriteLine("Decompression to {0} completed", decompressedPath);
         }
     }
 }

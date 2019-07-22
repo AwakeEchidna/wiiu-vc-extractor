@@ -93,7 +93,7 @@ namespace WiiuVcExtractor
             else if (PsbFile.IsPsb(sourcePath))
             {
                 Console.WriteLine("PSB file detected!");
-                psbFile = new PsbFile(sourcePath);
+                psbFile = new PsbFile(sourcePath, verbose);
             }
 
             // Create the list of rom extractors
