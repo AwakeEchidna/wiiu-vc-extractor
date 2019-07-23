@@ -267,6 +267,11 @@ namespace WiiuVcExtractor.RomExtractors
                 return true;
             }
 
+            if (verbose)
+            {
+                Console.WriteLine("PSB File is not set! Cannot detect GBA Rom.");
+            }
+
             return false;
         }
 
