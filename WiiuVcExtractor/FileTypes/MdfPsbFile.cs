@@ -19,6 +19,7 @@ namespace WiiuVcExtractor.FileTypes
         byte[] mdfData;
         byte[] xorKey;
 
+        bool verbose;
         string path;
         string decompressedPath;
 
@@ -32,6 +33,7 @@ namespace WiiuVcExtractor.FileTypes
 
         public MdfPsbFile(string psbFilePath, bool verbose = false)
         {
+            this.verbose = verbose;
             Console.WriteLine("Decompressing PSB file...");
 
             path = psbFilePath;
@@ -40,6 +42,10 @@ namespace WiiuVcExtractor.FileTypes
             // Remove the temp file if it exists
             if (File.Exists(decompressedPath))
             {
+                if (verbose)
+                {
+                    Console.WriteLine("File exists at {0}, deleting...", decompressedPath);
+                }
                 File.Delete(decompressedPath);
             }
 
@@ -50,8 +56,17 @@ namespace WiiuVcExtractor.FileTypes
                 Console.WriteLine("MDF Header content:\n{0}", mdfHeader.ToString());
             }
 
+            if (verbose)
+            {
+                Console.WriteLine("Generating XOR key for MDF decryption...");
+            }
             xorKey = GenerateXorKey(path);
 
+
+            if (verbose)
+            {
+                Console.WriteLine("Reading bytes from {0}...", path);
+            }
             mdfData = File.ReadAllBytes(path);
 
             DecryptMdfData();
@@ -107,6 +122,10 @@ namespace WiiuVcExtractor.FileTypes
 
         private void DecryptMdfData()
         {
+            if (verbose)
+            {
+                Console.WriteLine("Decrypting MDF data...");
+            }
             // Copy the PSB data into decryptedData
             byte[] decryptedData = new byte[mdfData.Length];
             Array.Copy(mdfData, decryptedData, mdfData.Length);
@@ -118,10 +137,18 @@ namespace WiiuVcExtractor.FileTypes
             }
 
             mdfData = decryptedData;
+            if (verbose)
+            {
+                Console.WriteLine("Decryption complete");
+            }
         }
 
         private void DecompressMdfData()
         {
+            if (verbose)
+            {
+                Console.WriteLine("Decompressing MDF data...");
+            }
             byte[] compressedData = new byte[mdfData.Length - MdfHeader.MDF_HEADER_LENGTH];
             byte[] decompressedData;
 

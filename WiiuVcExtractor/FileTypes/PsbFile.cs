@@ -41,7 +41,11 @@ namespace WiiuVcExtractor.FileTypes
         {
             try
             {
-                compressedPsbFile = new MdfPsbFile(psbFilePath);
+                if (verbose)
+                {
+                    Console.WriteLine("Attempting to read PSB file from {0}...", psbFilePath);
+                }
+                compressedPsbFile = new MdfPsbFile(psbFilePath, verbose);
             }
             catch (Exception ex)
             {
