@@ -79,6 +79,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <Content Include="dsromnames.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="nesromnames.csv">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
