@@ -60,6 +60,12 @@ namespace WiiuVcExtractor.RomExtractors
         // Location of output file
         private string finalPath;
 
+        // VC and DS names
+        private string vcName;
+        private string dsName;
+
+        private bool hasName;
+
         private bool verbose = false;
 
         // Constructor - set verbosity, path to srl file, and rom dictionary
@@ -77,7 +83,12 @@ namespace WiiuVcExtractor.RomExtractors
             dsGameTitles = (from rom in dataFile.Descendants("game")
                             select (string)rom.Attribute("name")).ToArray();
 
-            finalPath = srlFile.Path.Substring(0, srlFile.Path.Length - 3) + "nds";
+            finalPath = Path.GetFileNameWithoutExtension(srlFile.Path) + "nds";
+
+            vcName = Path.GetFileNameWithoutExtension(srlFile.Path);
+            dsName = vcName;
+
+            hasName = false;
         }
 
         // Check for the Nintendo logo at offsets 0xC0 to 0x15B
@@ -107,10 +118,12 @@ namespace WiiuVcExtractor.RomExtractors
                         {
                             if (nintenLogo[i] != br.ReadByte())
                             {
+                                Console.WriteLine("Not a valid DS VC Title");
                                 return false;
                             }
                         }
 
+                        Console.WriteLine("DS Rom Detected!");
                         return true;
                     }
                 }
@@ -134,6 +147,7 @@ namespace WiiuVcExtractor.RomExtractors
                 }
             }
 
+            Console.WriteLine("Overwriting junk data...");
             // Overwrites junk data with zeroes
             for (int i = startJunkOffset; i < startGameOffset; i++)
             {
@@ -159,8 +173,6 @@ namespace WiiuVcExtractor.RomExtractors
 
             }
 
-            // TODO - get names for both encrypted and decrypted roms
-            //
             // Identify name of file using MD5 hash and set as output path
             MD5 md5Hash = MD5.Create();
             byte[] data = md5Hash.ComputeHash(game);
@@ -170,6 +182,8 @@ namespace WiiuVcExtractor.RomExtractors
                 sBuilder.Append(data[i].ToString("x2"));
             }
             string hashString = sBuilder.ToString();
+
+            Console.WriteLine("MD5 of overwritten file is " + hashString);
 
             // Attempt to find matching MD5 and then gametitle
             // IF this fails, the SRL file name is used instead
@@ -181,10 +195,24 @@ namespace WiiuVcExtractor.RomExtractors
                         Path.GetFileName(finalPath).Length);
                     finalPath += dsGameTitles[i] + ".nds";
 
+                    dsName = Path.GetFileNameWithoutExtension(finalPath);
+                    hasName = true;
+
                     i = dsMD5.Length;
                 }
             }
 
+            Console.WriteLine("Virtual Console Title: " + vcName);
+            if(hasName)
+            {
+                Console.WriteLine("DS Title: " + dsName);
+            }
+            else
+            {
+                Console.WriteLine("DS title not found");
+            }
+
+            Console.WriteLine("Writing game data...");
             // Ouputs final game file
             using (FileStream fs = new FileStream(finalPath, FileMode.Create))
             {
@@ -194,8 +222,11 @@ namespace WiiuVcExtractor.RomExtractors
                 }
             }
 
+            Console.WriteLine("DS rom has been created successfully at " + 
+                Path.GetFileName(finalPath));
+
             // Return location of final game file to Program.cs
-            return finalPath;
+            return Path.GetFileName(finalPath);
         }
     }
 }
