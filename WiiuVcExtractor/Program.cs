@@ -84,6 +84,7 @@ namespace WiiuVcExtractor
             RpxFile rpxFile = null;
             PsbFile psbFile = null;
             PkgFile pkgFile = null;
+            SrlFile srlFile = null;
 
             // Identifies filetype of the file argument,
             // then instantiates file with file's location and verbose
@@ -100,6 +101,11 @@ namespace WiiuVcExtractor
             else if (PkgFile.IsPkg(sourcePath))
             {
                 pkgFile = new PkgFile(sourcePath, verbose);
+            }
+            else if (SrlFile.IsSrl(sourcePath))
+            {
+                Console.WriteLine("SRL file detected!");
+                srlFile = new SrlFile(sourcePath, verbose);
             }
 
             // Create the list of rom extractors
@@ -122,6 +128,10 @@ namespace WiiuVcExtractor
             else if (Path.GetExtension(sourcePath) == ".sfrom")
             {
                 romExtractors.Add(new SnesVcExtractor(sourcePath, verbose));
+            }
+            else if (srlFile != null)
+            {
+                romExtractors.Add(new DsVcExtractor(srlFile, verbose));
             }
 
             // Check with each extractor until a valid rom is found,

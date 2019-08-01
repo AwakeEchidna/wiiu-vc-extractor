@@ -15,12 +15,7 @@ namespace WiiuVcExtractor.RomExtractors
         private const int FDS_HEADER_LENGTH = 16;
         private const int VC_NAME_LENGTH = 8;
         private const int VC_NAME_PADDING = 8;
-        private const int PRG_PAGE_SIZE = 16384;
-        private const int CHR_PAGE_SIZE = 8192;
-        private const int CHARACTER_BREAK = 0x1A;
-        private const int BROKEN_NES_HEADER_OFFSET = 0x3;
-        private const int PRG_PAGE_OFFSET = 0x4;
-        private const int CHR_PAGE_OFFSET = 0x5;
+        private const int romSize = 65500;
         private const string NES_DICTIONARY_CSV_PATH = "nesromnames.csv";
 
         private RpxFile rpxFile;
@@ -48,6 +43,7 @@ namespace WiiuVcExtractor.RomExtractors
 
             nesDictionary = new RomNameDictionary(nesDictionaryPath);
             fdsRomHeader = new byte[FDS_HEADER_LENGTH];
+            fullGameData = new byte[romSize];
             romPosition = 0;
             vcNamePosition = 0;
 
@@ -107,15 +103,12 @@ namespace WiiuVcExtractor.RomExtractors
                         // 0x10000 or 0x20000 in length, depending on $ of disks
                         //
                         // Since these are Wii U VC titles, they should have 1 disk
-                        int romSize = 65500;
-
                         Console.WriteLine("Total FDS rom size: " + romSize + " Bytes");
 
                         Console.WriteLine("Getting rom data...");
 
                         fdsRomData = br.ReadBytes(romSize - FDS_HEADER_LENGTH);
 
-                        fullGameData = new byte[romSize];
                         Buffer.BlockCopy(fdsRomHeader, 0, fullGameData, 0, fdsRomHeader.Length);
                         Buffer.BlockCopy(fdsRomData, 0, fullGameData, fdsRomHeader.Length, fdsRomData.Length);
 
@@ -124,8 +117,10 @@ namespace WiiuVcExtractor.RomExtractors
                         using (BinaryWriter bw = new BinaryWriter(File.Open(
                             extractedRomPath, FileMode.Create)))
                         {
-                            // Convert QD to FDS
+                            //Einstein95's qd2fds.py
                             //
+                            // Convert QD to FDS
+                            
                             // Remove bytes at offsets 0x38 and 0x39
                             for (int i = 0x38; i + 2 < fullGameData.Length; i++)
                             {

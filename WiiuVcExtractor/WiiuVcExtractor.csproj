@@ -57,6 +57,7 @@
     <Compile Include="FileTypes\PsbFileInfoEntry.cs" />
     <Compile Include="FileTypes\PsbHeader.cs" />
     <Compile Include="FileTypes\PsbNameTable.cs" />
+    <Compile Include="FileTypes\SrlFile.cs" />
     <Compile Include="FileTypes\RpxSectionHeader.cs" />
     <Compile Include="FileTypes\RpxSectionHeaderSort.cs" />
     <Compile Include="Libraries\EndianUtility.cs" />
@@ -64,6 +65,7 @@
     <Compile Include="Libraries\SnesPcmExtractor.cs" />
     <Compile Include="Libraries\RomNameDictionary.cs" />
     <Compile Include="RomExtractors\GbaVcExtractor.cs" />
+    <Compile Include="RomExtractors\DsVcExtractor.cs" />
     <Compile Include="RomExtractors\IRomExtractor.cs" />
     <Compile Include="Libraries\mt19937ar.cs" />
     <Compile Include="RomExtractors\FdsVcExtractor.cs" />
@@ -77,6 +79,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <Content Include="dsromnames.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="nesromnames.csv">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
