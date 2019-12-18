@@ -1,7 +1,7 @@
 # wiiu-vc-extractor
 Extracts Wii U Virtual Console roms from dumps created via [DDD](https://github.com/dimok789/ddd/releases) or from the SNES Mini.
 
-This currently only supports extracting GBA, NES, FDS, PCE, and SNES roms. Note that most VC titles are not clean roms but have been modified from their original state.
+This currently only supports extracting GBA, DS, NES, FDS, PCE, and SNES roms. Note that most VC titles are not clean roms but have been modified from their original state.
 
 ## Installation
 ### Windows
