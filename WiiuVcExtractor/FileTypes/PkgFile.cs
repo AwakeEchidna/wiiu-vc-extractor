@@ -22,8 +22,15 @@ namespace WiiuVcExtractor.FileTypes
 
         public static bool IsPkg(string pkgFilePath)
         {
-            PkgHeader header = new PkgHeader(pkgFilePath);
-            return header.IsValid();
+            try
+            {
+                PkgHeader header = new PkgHeader(pkgFilePath);
+                return header.IsValid();
+            } catch (Exception ex)
+            {
+                // If an exception is received, assume that the header could not be parsed successfully
+                return false;
+            }
         }
 
         public PkgFile(string pkgFilePath, bool verbose = false)
