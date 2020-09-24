@@ -120,8 +120,10 @@ namespace WiiuVcExtractor.RomExtractors
 
                 Console.WriteLine("GBA rom has been created successfully at " + extractedRomPath);
 
+                // Per issue https://github.com/wheatevo/wiiu-vc-extractor/issues/44 this should be unnecessary.
+                // Leaving the code in for now to allow for it to be enabled via an option in the future if desired.
                 // ensure the first 4 bytes of the rom file are 0x2E0000EA and then replace them if they are not
-                FixEntryPoint(extractedRomPath);
+                // FixEntryPoint(extractedRomPath);
 
                 return extractedRomPath;
             }
@@ -265,6 +267,11 @@ namespace WiiuVcExtractor.RomExtractors
 
                 Console.WriteLine("GBA Rom Detected!");
                 return true;
+            }
+
+            if (verbose)
+            {
+                Console.WriteLine("PSB File is not set! Cannot detect GBA Rom.");
             }
 
             return false;
