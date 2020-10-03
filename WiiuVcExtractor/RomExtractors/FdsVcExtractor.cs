@@ -147,12 +147,6 @@ namespace WiiuVcExtractor.RomExtractors
                         fullGameDataFDS = new byte[fdsDiskSize * numberOfDisks];
 
                         Console.WriteLine("Number of Disks: " + numberOfDisks);
-
-                        //
-                        // MOVE THIS TO AFTER FDS CONVERSION
-                        //
-                        //Console.WriteLine("Total FDS rom size: " + qdDiskSize * numberOfDisks + " Bytes");
-
                         Console.WriteLine("Getting rom data...");
 
                         // From the position at the end of the header, read the rest of the rom
@@ -235,6 +229,8 @@ namespace WiiuVcExtractor.RomExtractors
                                 fullGameDataFDS[33487] = 0x4A;
                                 fullGameDataFDS[33497] = 0x4A;
                             }
+
+                            Console.WriteLine("Total FDS rom size: " + fullGameDataFDS.Length + " Bytes");
 
                             Console.WriteLine("Writing rom data...");
                             bw.Write(fullGameDataFDS);
