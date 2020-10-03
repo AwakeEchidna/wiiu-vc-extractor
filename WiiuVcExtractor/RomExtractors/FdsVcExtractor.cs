@@ -32,6 +32,7 @@ namespace WiiuVcExtractor.RomExtractors
         private byte[] fdsRomHeader;
         private byte[] qdRomData;
         private byte[] fullGameDataQD;
+        private byte[] fullGameDataFDS;
 
         private bool verbose;
 
@@ -141,8 +142,9 @@ namespace WiiuVcExtractor.RomExtractors
                             }
                         }
 
-                        // Set size of full QD game using number of disks
+                        // Set size of full QD and FDS game using number of disks
                         fullGameDataQD = new byte[qdDiskSize * numberOfDisks];
+                        fullGameDataFDS = new byte[fdsDiskSize * numberOfDisks];
 
                         Console.WriteLine("Number of Disks: " + numberOfDisks);
 
@@ -166,68 +168,76 @@ namespace WiiuVcExtractor.RomExtractors
                                 extractedRomPath, FileMode.Create)))
                         {
                             // Einstein95's qd2fds.py
-                            //
                             // Convert QD to FDS
-                            
-                            // Remove bytes at offsets 0x38 and 0x39
-                            for (int i = 0x38; i + 2 < fullGameDataQD.Length; i++)
+                            //
+                            // Convert each disk, then insert each into FDS output game data array
+                            for (int disk = 0; disk < numberOfDisks; disk++)
                             {
-                                fullGameDataQD[i] = fullGameDataQD[i + 2];
-                                fullGameDataQD[i + 2] = 0;
-                            }
+                                // Get current disk data
+                                byte[] currentDisk = new byte[qdDiskSize];
+                                Buffer.BlockCopy(fullGameDataQD, disk*qdDiskSize, currentDisk, 0, qdDiskSize);
 
-                            int position = 0x3A;
-
-                            try
-                            {
-                                while(fullGameDataQD[position+2] == 3)
+                                // Remove bytes at offsets 0x38 and 0x39
+                                for (int i = 0x38; i + 2 < currentDisk.Length; i++)
                                 {
-                                    // Delete 2 bytes
-                                    for(int i = position; i+2 < fullGameDataQD.Length; i++)
-                                    {
-                                        fullGameDataQD[i] = fullGameDataQD[i + 2];
-                                        fullGameDataQD[i + 2] = 0;
-                                    }
-
-                                    int end2 = fullGameDataQD[position + 0xD];
-                                    int end1 = fullGameDataQD[position + 0xE];
-                                    string fileSizeText = end1.ToString("X2") + end2.ToString("X2");
-                                    int fileSize = int.Parse(fileSizeText, System.Globalization.NumberStyles.HexNumber);
-
-                                    // Delete 2 bytes
-                                    for (int i = position + 0x10; i + 2 < fullGameDataQD.Length; i++)
-                                    {
-                                        fullGameDataQD[i] = fullGameDataQD[i + 2];
-                                        fullGameDataQD[i + 2] = 0;
-                                    }
-
-                                    position += 0x11 + fileSize;
+                                    currentDisk[i] = currentDisk[i + 2];
+                                    currentDisk[i + 2] = 0;
                                 }
-                            }
-                            catch (IndexOutOfRangeException)
-                            {
-                            }
 
-                            // Delete 2 bytes
-                            for (int i = position; i + 2 < fullGameDataQD.Length; i++)
-                            {
-                                fullGameDataQD[i] = fullGameDataQD[i + 2];
-                                fullGameDataQD[i + 2] = 0;
+                                int position = 0x3A;
+
+                                try
+                                {
+                                    while(currentDisk[position+2] == 3)
+                                    {
+                                        // Delete 2 bytes
+                                        for(int i = position; i+2 < currentDisk.Length; i++)
+                                        {
+                                            currentDisk[i] = currentDisk[i + 2];
+                                            currentDisk[i + 2] = 0;
+                                        }
+
+                                        int end2 = currentDisk[position + 0xD];
+                                        int end1 = currentDisk[position + 0xE];
+                                        string fileSizeText = end1.ToString("X2") + end2.ToString("X2");
+                                        int fileSize = int.Parse(fileSizeText, System.Globalization.NumberStyles.HexNumber);
+
+                                        // Delete 2 bytes
+                                        for (int i = position + 0x10; i + 2 < currentDisk.Length; i++)
+                                        {
+                                            currentDisk[i] = currentDisk[i + 2];
+                                            currentDisk[i + 2] = 0;
+                                        }
+
+                                        position += 0x11 + fileSize;
+                                    }
+                                }
+                                catch (IndexOutOfRangeException)
+                                {
+                                }
+
+                                // Delete 2 bytes
+                                for (int i = position; i + 2 < currentDisk.Length; i++)
+                                {
+                                    currentDisk[i] = currentDisk[i + 2];
+                                    currentDisk[i + 2] = 0;
+                                }
+
+                                // Copy current disk data to the full FDS game data array at the correct position for the disk
+                                Buffer.BlockCopy(currentDisk, 0, fullGameDataFDS, disk * fdsDiskSize, fdsDiskSize);
                             }
-
-
 
                             // if Lost Levels, correct three bytes
                             // why is this happening? these three are the only things preventing the checksum from matching no-intro 
                             if (isLL)
                             {
-                                fullGameDataQD[8784] = 0x58;
-                                fullGameDataQD[33487] = 0x4A;
-                                fullGameDataQD[33497] = 0x4A;
+                                fullGameDataFDS[8784] = 0x58;
+                                fullGameDataFDS[33487] = 0x4A;
+                                fullGameDataFDS[33497] = 0x4A;
                             }
 
                             Console.WriteLine("Writing rom data...");
-                            bw.Write(fullGameDataQD);
+                            bw.Write(fullGameDataFDS);
                         }
 
                         Console.WriteLine("Famicom Disk System rom has been " +
