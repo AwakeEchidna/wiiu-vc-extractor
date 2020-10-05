@@ -36,8 +36,6 @@ namespace WiiuVcExtractor.RomExtractors
 
         private bool verbose;
 
-        private bool isLL = false;
-
         public FdsVcExtractor(RpxFile rpxFile, bool verbose = false)
         {
             this.verbose = verbose;
@@ -81,12 +79,6 @@ namespace WiiuVcExtractor.RomExtractors
                             Console.WriteLine("Could not determine rom name, " +
                                 "please enter your desired filename:");
                             romName = Console.ReadLine();
-                        }
-
-                        // Patch for Lost Levels - 3 incorrect bytes?
-                        if(vcName.Equals("WUP-FA9E"))
-                        {
-                           isLL = true;
                         }
 
                         Console.WriteLine("Virtual Console Title: " + vcName);
@@ -219,15 +211,6 @@ namespace WiiuVcExtractor.RomExtractors
 
                                 // Copy current disk data to the full FDS game data array at the correct position for the disk
                                 Buffer.BlockCopy(currentDisk, 0, fullGameDataFDS, disk * fdsDiskSize, fdsDiskSize);
-                            }
-
-                            // if Lost Levels, correct three bytes
-                            // why is this happening? these three are the only things preventing the checksum from matching no-intro 
-                            if (isLL)
-                            {
-                                fullGameDataFDS[8784] = 0x58;
-                                fullGameDataFDS[33487] = 0x4A;
-                                fullGameDataFDS[33497] = 0x4A;
                             }
 
                             Console.WriteLine("Total FDS rom size: " + fullGameDataFDS.Length + " Bytes");
