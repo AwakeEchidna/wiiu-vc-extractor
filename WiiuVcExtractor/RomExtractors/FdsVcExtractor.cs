@@ -27,7 +27,7 @@ namespace WiiuVcExtractor.RomExtractors
         private long romPosition;
         private string vcName;
         private long vcNamePosition;
-        private int numberOfDisks;
+        private int numberOfSides;
 
         private byte[] fdsRomHeader;
         private byte[] qdRomData;
@@ -46,7 +46,7 @@ namespace WiiuVcExtractor.RomExtractors
             fdsRomHeader = new byte[FDS_HEADER_LENGTH];
             romPosition = 0;
             vcNamePosition = 0;
-            numberOfDisks = 1;
+            numberOfSides = 1;
 
             this.rpxFile = rpxFile;
         }
@@ -92,57 +92,67 @@ namespace WiiuVcExtractor.RomExtractors
                         // read past it
                         br.ReadBytes(FDS_HEADER_LENGTH);
 
-                        // Determine the rom's size - find number of disks
+                        // Determine the rom's size - find number of disk sides
                         //
-                        // All FDS disks are 65500 bytes
+                        // All FDS disk sides are 65500 bytes (0xFFDC bytes)
                         //
                         // These are in QuickDisk format, which are either
-                        // 0x10000 or 0x20000 in length, depending on number of disks
+                        // 0x10000, 0x20000, 0x30000, or 0x40000 bytes in length, depending on number of sides
                         using (FileStream fsDskChk = new FileStream(rpxFile.DecompressedPath,
                                 FileMode.Open, FileAccess.Read))
                         {
                             using (BinaryReader brDskChk = new BinaryReader(fsDskChk, new ASCIIEncoding()))
                             {
-                                // Get to start of first disk, then seek ahead to next disk
+                                // Bool to account for proper header
+                                bool headerValid = true;
+
+                                // First side is known to exist, so seek ahead to next disk
                                 brDskChk.BaseStream.Seek(vcNamePosition, SeekOrigin.Begin);
                                 brDskChk.ReadBytes(VC_NAME_LENGTH);
                                 brDskChk.ReadBytes(VC_NAME_PADDING);
-                                // Now, read to the second disk
+                                // OK, currently at beginning of first side
+                                // Now, read to the next side
                                 brDskChk.ReadBytes(qdDiskSize);
 
-                                // Check header
-                                // Ensure the rest of the header is valid, except final byte (manufacturer code)
-                                // Read in 2nd disk header
-                                byte[] headerBuffer = brDskChk.ReadBytes(FDS_HEADER_LENGTH);
-                                // Bool to account for 2nd header
-                                bool headerValid = true;
-                                // Iterate through buffer
-                                for (int i = 1; i < FDS_HEADER_CHECK.Length && headerValid; i++)
+                                // Check for Nintendo header until it doesn't match
+                                while (headerValid)
                                 {
-                                    // Compare byte at buffer position to corresponding byte in header
-                                    if (headerBuffer[i] != FDS_HEADER_CHECK[i])
+                                    // Check header
+                                    // Ensure the rest of the header is valid, except final byte (manufacturer code)
+                                    // Read in 2nd disk header
+                                    byte[] headerBuffer = brDskChk.ReadBytes(FDS_HEADER_LENGTH);
+
+                                    // Iterate through buffer
+                                    for (int i = 0; i < FDS_HEADER_CHECK.Length && headerValid; i++)
                                     {
-                                        // If they don't match, header is wrong
-                                        headerValid = false;
+                                        // Compare byte at buffer position to corresponding byte in header
+                                        if (headerBuffer[i] != FDS_HEADER_CHECK[i])
+                                        {
+                                            // If they don't match, header is wrong
+                                            headerValid = false;
+                                        }
                                     }
-                                }
-                                // If the header is valid, this FDS title is double-sided
-                                if (headerValid)
-                                {
-                                    numberOfDisks = 2;
+
+                                    // If the header is valid, increment side count and continue
+                                    if (headerValid)
+                                    {
+                                        numberOfSides++;
+                                        // Now, read to the next side - account for header already read
+                                        brDskChk.ReadBytes(qdDiskSize - FDS_HEADER_LENGTH);
+                                    }                                    
                                 }
                             }
                         }
 
                         // Set size of full QD and FDS game using number of disks
-                        fullGameDataQD = new byte[qdDiskSize * numberOfDisks];
-                        fullGameDataFDS = new byte[fdsDiskSize * numberOfDisks];
+                        fullGameDataQD = new byte[qdDiskSize * numberOfSides];
+                        fullGameDataFDS = new byte[fdsDiskSize * numberOfSides];
 
-                        Console.WriteLine("Number of Disks: " + numberOfDisks);
+                        Console.WriteLine("Number of Disks: " + numberOfSides);
                         Console.WriteLine("Getting rom data...");
 
                         // From the position at the end of the header, read the rest of the rom
-                        qdRomData = br.ReadBytes(-FDS_HEADER_LENGTH + qdDiskSize * numberOfDisks);
+                        qdRomData = br.ReadBytes(-FDS_HEADER_LENGTH + qdDiskSize * numberOfSides);
 
                         // Copy the FDS header (determined by IsValidRom) and the rom data to a full-game byte array
                         Buffer.BlockCopy(fdsRomHeader, 0, fullGameDataQD, 0, fdsRomHeader.Length);
@@ -156,8 +166,8 @@ namespace WiiuVcExtractor.RomExtractors
                             // Einstein95's qd2fds.py
                             // Convert QD to FDS
                             //
-                            // Convert each disk, then insert each into FDS output game data array
-                            for (int disk = 0; disk < numberOfDisks; disk++)
+                            // Convert each side of disk, then insert each into FDS output game data array
+                            for (int disk = 0; disk < numberOfSides; disk++)
                             {
                                 // Get current disk data
                                 byte[] currentDisk = new byte[qdDiskSize];
