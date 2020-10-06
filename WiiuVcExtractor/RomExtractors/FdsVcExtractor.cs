@@ -103,10 +103,10 @@ namespace WiiuVcExtractor.RomExtractors
                         {
                             using (BinaryReader brDskChk = new BinaryReader(fsDskChk, new ASCIIEncoding()))
                             {
-                                // Bool to account for proper header
+                                // Bool to account for correct header
                                 bool headerValid = true;
 
-                                // First side is known to exist, so seek ahead to next disk
+                                // First side is known to exist, so seek ahead to next side
                                 brDskChk.BaseStream.Seek(vcNamePosition, SeekOrigin.Begin);
                                 brDskChk.ReadBytes(VC_NAME_LENGTH);
                                 brDskChk.ReadBytes(VC_NAME_PADDING);
