@@ -122,13 +122,13 @@ namespace WiiuVcExtractor.RomExtractors
                                     // Read in 2nd disk header
                                     byte[] headerBuffer = brDskChk.ReadBytes(FDS_HEADER_LENGTH);
 
-                                    // Iterate through buffer
+                                    // Iterate through buffer and header
                                     for (int i = 0; i < FDS_HEADER_CHECK.Length && headerValid; i++)
                                     {
                                         // Compare byte at buffer position to corresponding byte in header
                                         if (headerBuffer[i] != FDS_HEADER_CHECK[i])
                                         {
-                                            // If they don't match, header is wrong
+                                            // If they don't match, header is wrong - end loops
                                             headerValid = false;
                                         }
                                     }
