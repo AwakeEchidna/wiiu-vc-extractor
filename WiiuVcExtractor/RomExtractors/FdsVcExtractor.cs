@@ -11,11 +11,12 @@ namespace WiiuVcExtractor.RomExtractors
         // Famicom Disk System header
         private static readonly byte[] FDS_HEADER_CHECK = {0x01, 0x2A, 0x4E,
             0x49, 0x4E, 0x54, 0x45, 0x4E, 0x44, 0x4F, 0x2D, 0x48, 0x56, 0x43,
-            0x2A, 0x01};
+            0x2A};
         private const int FDS_HEADER_LENGTH = 16;
         private const int VC_NAME_LENGTH = 8;
         private const int VC_NAME_PADDING = 8;
-        private const int romSize = 65500;
+        private const int fdsDiskSize = 65500;
+        private const int qdDiskSize = 0x10000;
         private const string NES_DICTIONARY_CSV_PATH = "nesromnames.csv";
 
         private RpxFile rpxFile;
@@ -26,14 +27,14 @@ namespace WiiuVcExtractor.RomExtractors
         private long romPosition;
         private string vcName;
         private long vcNamePosition;
+        private int numberOfSides;
 
         private byte[] fdsRomHeader;
-        private byte[] fdsRomData;
-        private byte[] fullGameData;
+        private byte[] qdRomData;
+        private byte[] fullGameDataQD;
+        private byte[] fullGameDataFDS;
 
         private bool verbose;
-
-        private bool isLL = false;
 
         public FdsVcExtractor(RpxFile rpxFile, bool verbose = false)
         {
@@ -43,9 +44,9 @@ namespace WiiuVcExtractor.RomExtractors
 
             nesDictionary = new RomNameDictionary(nesDictionaryPath);
             fdsRomHeader = new byte[FDS_HEADER_LENGTH];
-            fullGameData = new byte[romSize];
             romPosition = 0;
             vcNamePosition = 0;
+            numberOfSides = 1;
 
             this.rpxFile = rpxFile;
         }
@@ -80,11 +81,6 @@ namespace WiiuVcExtractor.RomExtractors
                             romName = Console.ReadLine();
                         }
 
-                        if(vcName.Equals("WUP-FA9E"))
-                        {
-                            isLL = true;
-                        }
-
                         Console.WriteLine("Virtual Console Title: " + vcName);
                         Console.WriteLine("FDS Title: " + romName);
 
@@ -96,87 +92,141 @@ namespace WiiuVcExtractor.RomExtractors
                         // read past it
                         br.ReadBytes(FDS_HEADER_LENGTH);
 
-                        // Determine the FDS rom's size
+                        // Determine the rom's size - find number of disk sides
                         //
-                        // All FDS disks are 65500 bytes, 
-                        // but these are in QD format, which is either
-                        // 0x10000 or 0x20000 in length, depending on $ of disks
+                        // All FDS disk sides are 65500 bytes (0xFFDC bytes)
                         //
-                        // Since these are Wii U VC titles, they should have 1 disk
-                        Console.WriteLine("Total FDS rom size: " + romSize + " Bytes");
+                        // These are in QuickDisk format, which are either
+                        // 0x10000, 0x20000, 0x30000, or 0x40000 bytes in length, depending on number of sides
+                        using (FileStream fsDskChk = new FileStream(rpxFile.DecompressedPath,
+                                FileMode.Open, FileAccess.Read))
+                        {
+                            using (BinaryReader brDskChk = new BinaryReader(fsDskChk, new ASCIIEncoding()))
+                            {
+                                // Bool to account for correct header
+                                bool headerValid = true;
 
+                                // First side is known to exist, so seek ahead to next side
+                                brDskChk.BaseStream.Seek(vcNamePosition, SeekOrigin.Begin);
+                                brDskChk.ReadBytes(VC_NAME_LENGTH);
+                                brDskChk.ReadBytes(VC_NAME_PADDING);
+                                // OK, currently at beginning of first side
+                                // Now, read to the next side
+                                brDskChk.ReadBytes(qdDiskSize);
+
+                                // Check for Nintendo header until it doesn't match
+                                while (headerValid)
+                                {
+                                    // Check header
+                                    // Ensure the rest of the header is valid, except final byte (manufacturer code)
+                                    // Read in 2nd disk header
+                                    byte[] headerBuffer = brDskChk.ReadBytes(FDS_HEADER_LENGTH);
+
+                                    // Iterate through buffer and header
+                                    for (int i = 0; i < FDS_HEADER_CHECK.Length && headerValid; i++)
+                                    {
+                                        // Compare byte at buffer position to corresponding byte in header
+                                        if (headerBuffer[i] != FDS_HEADER_CHECK[i])
+                                        {
+                                            // If they don't match, header is wrong - end loops
+                                            headerValid = false;
+                                        }
+                                    }
+
+                                    // If the header is valid, increment side count and continue
+                                    if (headerValid)
+                                    {
+                                        numberOfSides++;
+                                        // Now, read to the next side - account for header already read
+                                        brDskChk.ReadBytes(qdDiskSize - FDS_HEADER_LENGTH);
+                                    }                                    
+                                }
+                            }
+                        }
+
+                        // Set size of full QD and FDS game using number of disks
+                        fullGameDataQD = new byte[qdDiskSize * numberOfSides];
+                        fullGameDataFDS = new byte[fdsDiskSize * numberOfSides];
+
+                        Console.WriteLine("Number of Disks: " + numberOfSides);
                         Console.WriteLine("Getting rom data...");
 
-                        fdsRomData = br.ReadBytes(romSize - FDS_HEADER_LENGTH);
+                        // From the position at the end of the header, read the rest of the rom
+                        qdRomData = br.ReadBytes(-FDS_HEADER_LENGTH + qdDiskSize * numberOfSides);
 
-                        Buffer.BlockCopy(fdsRomHeader, 0, fullGameData, 0, fdsRomHeader.Length);
-                        Buffer.BlockCopy(fdsRomData, 0, fullGameData, fdsRomHeader.Length, fdsRomData.Length);
+                        // Copy the FDS header (determined by IsValidRom) and the rom data to a full-game byte array
+                        Buffer.BlockCopy(fdsRomHeader, 0, fullGameDataQD, 0, fdsRomHeader.Length);
+                        Buffer.BlockCopy(qdRomData, 0, fullGameDataQD, fdsRomHeader.Length, qdRomData.Length);
 
                         Console.WriteLine("Writing to " + extractedRomPath + "...");
 
                         using (BinaryWriter bw = new BinaryWriter(File.Open(
-                            extractedRomPath, FileMode.Create)))
+                                extractedRomPath, FileMode.Create)))
                         {
-                            //Einstein95's qd2fds.py
-                            //
+                            // Einstein95's qd2fds.py
                             // Convert QD to FDS
-                            
-                            // Remove bytes at offsets 0x38 and 0x39
-                            for (int i = 0x38; i + 2 < fullGameData.Length; i++)
+                            //
+                            // Convert each side of disk, then insert each into FDS output game data array
+                            for (int disk = 0; disk < numberOfSides; disk++)
                             {
-                                fullGameData[i] = fullGameData[i + 2];
-                                fullGameData[i + 2] = 0;
-                            }
+                                // Get current disk data
+                                byte[] currentDisk = new byte[qdDiskSize];
+                                Buffer.BlockCopy(fullGameDataQD, disk*qdDiskSize, currentDisk, 0, qdDiskSize);
 
-                            int position = 0x3A;
-
-                            try
-                            {
-                                while(fullGameData[position+2] == 3)
+                                // Remove bytes at offsets 0x38 and 0x39
+                                for (int i = 0x38; i + 2 < currentDisk.Length; i++)
                                 {
-                                    // Delete 2 bytes
-                                    for(int i = position; i+2 < fullGameData.Length; i++)
-                                    {
-                                        fullGameData[i] = fullGameData[i + 2];
-                                        fullGameData[i + 2] = 0;
-                                    }
-
-                                    int end2 = fullGameData[position + 0xD];
-                                    int end1 = fullGameData[position + 0xE];
-                                    string fileSizeText = end1.ToString("X2") + end2.ToString("X2");
-                                    int fileSize = int.Parse(fileSizeText, System.Globalization.NumberStyles.HexNumber);
-
-                                    // Delete 2 bytes
-                                    for (int i = position + 0x10; i + 2 < fullGameData.Length; i++)
-                                    {
-                                        fullGameData[i] = fullGameData[i + 2];
-                                        fullGameData[i + 2] = 0;
-                                    }
-
-                                    position += 0x11 + fileSize;
+                                    currentDisk[i] = currentDisk[i + 2];
+                                    currentDisk[i + 2] = 0;
                                 }
-                            }
-                            catch (IndexOutOfRangeException)
-                            {
+
+                                int position = 0x3A;
+
+                                try
+                                {
+                                    while(currentDisk[position+2] == 3)
+                                    {
+                                        // Delete 2 bytes
+                                        for(int i = position; i+2 < currentDisk.Length; i++)
+                                        {
+                                            currentDisk[i] = currentDisk[i + 2];
+                                            currentDisk[i + 2] = 0;
+                                        }
+
+                                        int end2 = currentDisk[position + 0xD];
+                                        int end1 = currentDisk[position + 0xE];
+                                        string fileSizeText = end1.ToString("X2") + end2.ToString("X2");
+                                        int fileSize = int.Parse(fileSizeText, System.Globalization.NumberStyles.HexNumber);
+
+                                        // Delete 2 bytes
+                                        for (int i = position + 0x10; i + 2 < currentDisk.Length; i++)
+                                        {
+                                            currentDisk[i] = currentDisk[i + 2];
+                                            currentDisk[i + 2] = 0;
+                                        }
+
+                                        position += 0x11 + fileSize;
+                                    }
+                                }
+                                catch (IndexOutOfRangeException)
+                                {
+                                }
+
+                                // Delete 2 bytes
+                                for (int i = position; i + 2 < currentDisk.Length; i++)
+                                {
+                                    currentDisk[i] = currentDisk[i + 2];
+                                    currentDisk[i + 2] = 0;
+                                }
+
+                                // Copy current disk data to the full FDS game data array at the correct position for the disk
+                                Buffer.BlockCopy(currentDisk, 0, fullGameDataFDS, disk * fdsDiskSize, fdsDiskSize);
                             }
 
-                            // Delete 2 bytes
-                            for (int i = position; i + 2 < fullGameData.Length; i++)
-                            {
-                                fullGameData[i] = fullGameData[i + 2];
-                                fullGameData[i + 2] = 0;
-                            }
-
-                            // if Lost Levels, correct three bytes
-                            if (isLL)
-                            {
-                                fullGameData[8784] = 0x58;
-                                fullGameData[33487] = 0x4A;
-                                fullGameData[33497] = 0x4A;
-                            }
+                            Console.WriteLine("Total FDS rom size: " + fullGameDataFDS.Length + " Bytes");
 
                             Console.WriteLine("Writing rom data...");
-                            bw.Write(fullGameData);
+                            bw.Write(fullGameDataFDS);
                         }
 
                         Console.WriteLine("Famicom Disk System rom has been " +
@@ -224,8 +274,8 @@ namespace WiiuVcExtractor.RomExtractors
 
                                 bool headerValid = true;
 
-                                // Ensure the rest of the header is valid
-                                for (int i = 1; i < 16 && headerValid; i++)
+                                // Ensure the rest of the header is valid, except final byte (manufacturer code)
+                                for (int i = 1; i < FDS_HEADER_CHECK.Length && headerValid; i++)
                                 {
                                     if (headerBuffer[i] != FDS_HEADER_CHECK[i])
                                     {
