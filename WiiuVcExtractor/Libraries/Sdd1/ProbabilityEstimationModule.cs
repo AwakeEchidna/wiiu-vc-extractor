@@ -1,54 +1,31 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace WiiuVcExtractor.Libraries.Sdd1
+﻿namespace WiiuVcExtractor.Libraries.Sdd1
 {
-    class ProbabilityEstimationModule
+    /// <summary>
+    /// Probability Estimation Module for S-DD1 compression.
+    /// </summary>
+    public class ProbabilityEstimationModule
     {
-        private ContextModel cm;
-        private GolombCodeEncoder gce;
-        UInt32 inputLength;
-        private struct State
-        {
-            public byte codeNum;
-            public byte nextIfMPS;
-            public byte nextIfLPS;
+        private readonly ContextModel cm;
+        private readonly GolombCodeEncoder gce;
+        private readonly State[] stateEvolutionTable;
+        private readonly SDD1ContextInfo[] contextInfo;
+        private uint inputLength;
 
-            public State(byte code, byte mps, byte lps)
-            {
-                codeNum = code;
-                nextIfMPS = mps;
-                nextIfLPS = lps;
-            }
-        }
-
-        private struct SDD1ContextInfo
-        {
-            public byte status;
-            public byte MPS;
-            public SDD1ContextInfo(byte stat, byte mps)
-            {
-                status = stat;
-                MPS = mps;
-            }
-        }
-
-        State[] stateEvolutionTable;
-        SDD1ContextInfo[] contextInfo;
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ProbabilityEstimationModule"/> class.
+        /// </summary>
+        /// <param name="associatedCM">associated context model.</param>
+        /// <param name="associatedGCE">associated golomb code encoder.</param>
         public ProbabilityEstimationModule(ref ContextModel associatedCM, ref GolombCodeEncoder associatedGCE)
         {
-            cm = associatedCM;
-            cm.pem = this;
-            gce = associatedGCE;
-            contextInfo = new SDD1ContextInfo[32];
+            this.cm = associatedCM;
+            this.cm.PEM = this;
+            this.gce = associatedGCE;
+            this.contextInfo = new SDD1ContextInfo[32];
 
-            stateEvolutionTable = new State[]
+            this.stateEvolutionTable = new State[]
             {
-                new State(0,25,25),
+                new State(0, 25, 25),
                 new State(0, 2, 1),
                 new State(0, 3, 1),
                 new State(0, 4, 2),
@@ -57,89 +34,135 @@ namespace WiiuVcExtractor.Libraries.Sdd1
                 new State(1, 7, 5),
                 new State(1, 8, 6),
                 new State(1, 9, 7),
-                new State(2,10, 8),
-                new State(2,11, 9),
-                new State(2,12,10),
-                new State(2,13,11),
-                new State(3,14,12),
-                new State(3,15,13),
-                new State(3,16,14),
-                new State(3,17,15),
-                new State(4,18,16),
-                new State(4,19,17),
-                new State(5,20,18),
-                new State(5,21,19),
-                new State(6,22,20),
-                new State(6,23,21),
-                new State(7,24,22),
-                new State(7,24,23),
-                new State(0,26, 1),
-                new State(1,27, 2),
-                new State(2,28, 4),
-                new State(3,29, 8),
-                new State(4,30,12),
-                new State(5,31,16),
-                new State(6,32,18),
-                new State(7,24,22)
+                new State(2, 10, 8),
+                new State(2, 11, 9),
+                new State(2, 12, 10),
+                new State(2, 13, 11),
+                new State(3, 14, 12),
+                new State(3, 15, 13),
+                new State(3, 16, 14),
+                new State(3, 17, 15),
+                new State(4, 18, 16),
+                new State(4, 19, 17),
+                new State(5, 20, 18),
+                new State(5, 21, 19),
+                new State(6, 22, 20),
+                new State(6, 23, 21),
+                new State(7, 24, 22),
+                new State(7, 24, 23),
+                new State(0, 26, 1),
+                new State(1, 27, 2),
+                new State(2, 28, 4),
+                new State(3, 29, 8),
+                new State(4, 30, 12),
+                new State(5, 31, 16),
+                new State(6, 32, 18),
+                new State(7, 24, 22),
             };
         }
 
-        public void PrepareComp(byte header, UInt16 length)
+        /// <summary>
+        /// Prepare for compression.
+        /// </summary>
+        /// <param name="header">S-DD1 header.</param>
+        /// <param name="length">data length.</param>
+        public void PrepareComp(byte header, ushort length)
         {
             for (byte i = 0; i < 32; i++)
             {
-                contextInfo[i].status = 0;
-                contextInfo[i].MPS = 0;
+                this.contextInfo[i].Status = 0;
+                this.contextInfo[i].MPS = 0;
             }
-            inputLength = length;
+
+            this.inputLength = length;
             if (((header & 0x0c) != 0x0c) && ((length & 0x0001) != 0))
             {
-                inputLength++;
+                this.inputLength++;
             }
-            inputLength <<= 3;
+
+            this.inputLength <<= 3;
         }
 
+        /// <summary>
+        /// Get MPS value for given context ID.
+        /// </summary>
+        /// <param name="context">context ID.</param>
+        /// <returns>MPS value.</returns>
         public byte GetMPS(byte context)
         {
-            return contextInfo[context].MPS;
+            return this.contextInfo[context].MPS;
         }
 
+        /// <summary>
+        /// Launches the probability estimation module.
+        /// </summary>
         public void Launch()
         {
             byte bit;
             byte context;
             byte currStatus;
-            byte endOfRun = 0;
             State currState;
-            byte[] bitReturnBuffer = new byte[2];
 
-            for (UInt32 i = 0; i < inputLength; i++)
+            for (uint i = 0; i < this.inputLength; i++)
             {
-                bitReturnBuffer = cm.GetBit();
+                byte[] bitReturnBuffer = this.cm.GetBit();
                 bit = bitReturnBuffer[0];
                 context = bitReturnBuffer[1];
-                currStatus = contextInfo[context].status;
-                currState = stateEvolutionTable[currStatus];
-                bit ^= contextInfo[context].MPS;
-                endOfRun = gce.PutBit(currState.codeNum, bit, endOfRun);
+                currStatus = this.contextInfo[context].Status;
+                currState = this.stateEvolutionTable[currStatus];
+                bit ^= this.contextInfo[context].MPS;
+                byte endOfRun = this.gce.PutBit(currState.CodeNum, bit);
                 if (endOfRun != 0)
                 {
                     if (bit != 0)
                     {
                         if ((currStatus & 0xfe) == 0)
                         {
-                            contextInfo[context].MPS ^= 0x01;
-                        } 
-                        contextInfo[context].status = currState.nextIfLPS;
+                            this.contextInfo[context].MPS ^= 0x01;
+                        }
+
+                        this.contextInfo[context].Status = currState.NextIfLPS;
                     }
                     else
                     {
-                        contextInfo[context].status = currState.nextIfMPS;
+                        this.contextInfo[context].Status = currState.NextIfMPS;
                     }
                 }
             }
 
-            gce.FinishComp();
+            this.gce.FinishComp();
+        }
+
+        /// <summary>
+        /// Struct representing the current PEM state.
+        /// </summary>
+        private struct State
+        {
+            public byte CodeNum;
+            public byte NextIfMPS;
+            public byte NextIfLPS;
+
+            public State(byte code, byte mps, byte lps)
+            {
+                this.CodeNum = code;
+                this.NextIfMPS = mps;
+                this.NextIfLPS = lps;
+            }
+        }
+
+        /// <summary>
+        /// Struct representing context information for the S-DD1.
+        /// </summary>
+        private struct SDD1ContextInfo
+        {
+            public byte Status;
+            public byte MPS;
+
+            public SDD1ContextInfo(byte stat, byte mps)
+            {
+                this.Status = stat;
+                this.MPS = mps;
+            }
         }
     }
 }

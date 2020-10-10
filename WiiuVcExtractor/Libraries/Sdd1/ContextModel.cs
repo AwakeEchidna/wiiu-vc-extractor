@@ -1,131 +1,145 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace WiiuVcExtractor.Libraries.Sdd1
+﻿namespace WiiuVcExtractor.Libraries.Sdd1
 {
-    class ContextModel
+    using System.Collections.Generic;
+
+    /// <summary>
+    /// S-DD1 context model.
+    /// </summary>
+    public class ContextModel
     {
+        private readonly List<byte>[] bitplaneBuffer;
+        private readonly byte[] bpBitInd;
+        private readonly int[] byteIndex;
+        private readonly ushort[] prevBitplaneBits;
         private byte bitplanesInfo;
         private byte contextBitsInfo;
-        private List<byte>[] bitplaneBuffer;
-        private byte[] bpBitInd;
         private byte bitNumber;
-        private int[] byteIndex;
         private byte currBitplane;
-        private UInt16[] prevBitplaneBits;
-        public ProbabilityEstimationModule pem;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ContextModel"/> class.
+        /// </summary>
+        /// <param name="bpBuffer">bitplane buffer.</param>
         public ContextModel(ref List<byte>[] bpBuffer)
         {
-            prevBitplaneBits = new UInt16[8];
-            bpBitInd = new byte[8];
-            byteIndex = new int[8];
-            bitplaneBuffer = bpBuffer;
+            this.prevBitplaneBits = new ushort[8];
+            this.bpBitInd = new byte[8];
+            this.byteIndex = new int[8];
+            this.bitplaneBuffer = bpBuffer;
         }
 
+        /// <summary>
+        /// Gets or sets associated Probability Estimation Module.
+        /// </summary>
+        public ProbabilityEstimationModule PEM { get; set; }
+
+        /// <summary>
+        /// Prepare for compression.
+        /// </summary>
+        /// <param name="header">S-DD1 header.</param>
         public void PrepareComp(byte header)
         {
-            bitplanesInfo = (byte)(header & 0x0c);
-            contextBitsInfo = (byte)(header & 0x03);
+            this.bitplanesInfo = (byte)(header & 0x0c);
+            this.contextBitsInfo = (byte)(header & 0x03);
             for (int i = 0; i < 8; i++)
             {
-                byteIndex[i] = 0;
-                bpBitInd[i] = 0;
-                prevBitplaneBits[i] = 0;
+                this.byteIndex[i] = 0;
+                this.bpBitInd[i] = 0;
+                this.prevBitplaneBits[i] = 0;
             }
-            bitNumber = 0;
-            switch (bitplanesInfo)
+
+            this.bitNumber = 0;
+            switch (this.bitplanesInfo)
             {
                 case 0x00:
-                    currBitplane = 1;
+                    this.currBitplane = 1;
                     break;
                 case 0x04:
-                    currBitplane = 7;
+                    this.currBitplane = 7;
                     break;
                 case 0x08:
-                    currBitplane = 3;
+                    this.currBitplane = 3;
                     break;
             }
         }
 
-        // returns array with [bit, context]
+        /// <summary>
+        /// Gets bit from the bitplane.
+        /// </summary>
+        /// <returns>array with [bit, context].</returns>
         public byte[] GetBit()
         {
             byte bit;
             byte currContext;
 
-            switch (bitplanesInfo)
+            switch (this.bitplanesInfo)
             {
                 case 0x00:
-                    currBitplane ^= 0x01;
+                    this.currBitplane ^= 0x01;
                     break;
                 case 0x04:
-                    currBitplane ^= 0x01;
-                    if ((bitNumber & 0x7f) == 0)
+                    this.currBitplane ^= 0x01;
+                    if ((this.bitNumber & 0x7f) == 0)
                     {
-                        currBitplane = (byte)((currBitplane + 2) & 0x07);
+                        this.currBitplane = (byte)((this.currBitplane + 2) & 0x07);
                     }
+
                     break;
                 case 0x08:
-                    currBitplane ^= 0x01;
-                    if ((bitNumber & 0x7f) == 0)
+                    this.currBitplane ^= 0x01;
+                    if ((this.bitNumber & 0x7f) == 0)
                     {
-                        currBitplane ^= 0x02; 
+                        this.currBitplane ^= 0x02;
                     }
+
                     break;
                 case 0x0c:
-                    currBitplane = (byte)(bitNumber & 0x07);
+                    this.currBitplane = (byte)(this.bitNumber & 0x07);
                     break;
             }
 
-            // Use this where context_bits is used
-            // prevBitplaneBits[currBitplane]
+            currContext = (byte)((this.currBitplane & 0x01) << 4);
 
-            currContext = (byte)((currBitplane & 0x01) << 4);
-
-            switch (contextBitsInfo)
+            switch (this.contextBitsInfo)
             {
                 case 0x00:
-                    currContext |= (byte)(((prevBitplaneBits[currBitplane] & 0x01c0) >> 5) | (prevBitplaneBits[currBitplane] & 0x0001));
+                    currContext |= (byte)(((this.prevBitplaneBits[this.currBitplane] & 0x01c0) >> 5) | (this.prevBitplaneBits[this.currBitplane] & 0x0001));
                     break;
                 case 0x01:
-                    currContext |= (byte)(((prevBitplaneBits[currBitplane] & 0x0180) >> 5) | (prevBitplaneBits[currBitplane] & 0x0001));
+                    currContext |= (byte)(((this.prevBitplaneBits[this.currBitplane] & 0x0180) >> 5) | (this.prevBitplaneBits[this.currBitplane] & 0x0001));
                     break;
                 case 0x02:
-                    currContext |= (byte)(((prevBitplaneBits[currBitplane] & 0x00c0) >> 5) | (prevBitplaneBits[currBitplane] & 0x0001));
+                    currContext |= (byte)(((this.prevBitplaneBits[this.currBitplane] & 0x00c0) >> 5) | (this.prevBitplaneBits[this.currBitplane] & 0x0001));
                     break;
                 case 0x03:
-                    currContext |= (byte)(((prevBitplaneBits[currBitplane] & 0x0180) >> 5) | (prevBitplaneBits[currBitplane] & 0x0003));
+                    currContext |= (byte)(((this.prevBitplaneBits[this.currBitplane] & 0x0180) >> 5) | (this.prevBitplaneBits[this.currBitplane] & 0x0003));
                     break;
             }
 
-            if (byteIndex[currBitplane] == bitplaneBuffer[currBitplane].Count)
+            if (this.byteIndex[this.currBitplane] == this.bitplaneBuffer[this.currBitplane].Count)
             {
-                bit = pem.GetMPS(currContext);
+                bit = this.PEM.GetMPS(currContext);
             }
             else
             {
                 bit = 0;
 
-                if (((bitplaneBuffer[currBitplane][byteIndex[currBitplane]]) & (0x80 >> bpBitInd[currBitplane])) != 0)
+                if ((this.bitplaneBuffer[this.currBitplane][this.byteIndex[this.currBitplane]] & (0x80 >> this.bpBitInd[this.currBitplane])) != 0)
                 {
                     bit = 1;
                 }
 
-                if (((++bpBitInd[currBitplane]) & 0x08) != 0)
+                if (((++this.bpBitInd[this.currBitplane]) & 0x08) != 0)
                 {
-                    bpBitInd[currBitplane] = 0;
-                    byteIndex[currBitplane]++;
+                    this.bpBitInd[this.currBitplane] = 0;
+                    this.byteIndex[this.currBitplane]++;
                 }
             }
 
-            prevBitplaneBits[currBitplane] <<= 1;
-            prevBitplaneBits[currBitplane] |= bit;
+            this.prevBitplaneBits[this.currBitplane] <<= 1;
+            this.prevBitplaneBits[this.currBitplane] |= bit;
 
-            bitNumber++;
+            this.bitNumber++;
 
             byte[] returnArray = new byte[2];
             returnArray[0] = bit;

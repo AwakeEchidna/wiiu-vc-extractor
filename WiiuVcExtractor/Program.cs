@@ -1,30 +1,36 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using WiiuVcExtractor.RomExtractors;
-using WiiuVcExtractor.FileTypes;
-
-namespace WiiuVcExtractor
+﻿namespace WiiuVcExtractor
 {
-    class Program
-    {
-        private const string WIIU_VC_EXTRACTOR_VERSION = "1.0.0";
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using WiiuVcExtractor.FileTypes;
+    using WiiuVcExtractor.RomExtractors;
 
-        static void PrintUsage()
+    /// <summary>
+    /// Main entrypoint for Wii U VC Extractor CLI.
+    /// </summary>
+    public class Program
+    {
+        private const string WiiUVcExtractorVersion = "2.0.0";
+
+        /// <summary>
+        /// Prints usage information.
+        /// </summary>
+        public static void PrintUsage()
         {
             Console.WriteLine("=====================================");
-            Console.WriteLine("Wii U Virtual Console Extractor " + WIIU_VC_EXTRACTOR_VERSION);
+            Console.WriteLine("Wii U Virtual Console Extractor " + WiiUVcExtractorVersion);
             Console.WriteLine("=====================================");
             Console.WriteLine("Extracts roms from Virtual Console games dumped by DDD or from the SNES Mini.");
-            Console.WriteLine("");
+            Console.WriteLine(string.Empty);
             Console.WriteLine("Usage:");
             Console.WriteLine("wiiuvcextractor [-v] [rpx_or_psb.m_file]");
             Console.WriteLine("  - Extract a rom from a Virtual Console dump");
-            Console.WriteLine("");
+            Console.WriteLine(string.Empty);
             Console.WriteLine("wiiuvcextractor --version");
             Console.WriteLine("  - Display current version");
-            Console.WriteLine("");
-            Console.WriteLine("");
+            Console.WriteLine(string.Empty);
+            Console.WriteLine(string.Empty);
             Console.WriteLine("Usage Examples:");
             Console.WriteLine("wiiuvcextractor alldata.psb.m");
             Console.WriteLine("wiiuvcextractor WUP-FAME.rpx");
@@ -33,12 +39,19 @@ namespace WiiuVcExtractor
             Console.WriteLine("wiiuvcextractor -v WUP-JBBE.rpx");
         }
 
-        static void PrintVersion()
+        /// <summary>
+        /// Prints version information.
+        /// </summary>
+        public static void PrintVersion()
         {
-            Console.WriteLine(WIIU_VC_EXTRACTOR_VERSION);
+            Console.WriteLine(WiiUVcExtractorVersion);
         }
 
-        static void Main(string[] args)
+        /// <summary>
+        /// Main entrypoint.
+        /// </summary>
+        /// <param name="args">user-provided arguments.</param>
+        public static void Main(string[] args)
         {
             if (args.Length == 0 || args.Length > 2)
             {
@@ -62,7 +75,7 @@ namespace WiiuVcExtractor
                 Console.WriteLine("Verbose output mode is set");
             }
 
-            string sourcePath = args[args.Length - 1];
+            string sourcePath = args[^1];
 
             if (verbose)
             {
@@ -79,7 +92,7 @@ namespace WiiuVcExtractor
             Console.WriteLine("Starting extraction of rom from " + sourcePath + "...");
             Console.WriteLine("============================================================================");
 
-            string extractedRomPath = "";
+            string extractedRomPath = string.Empty;
 
             RpxFile rpxFile = null;
             PsbFile psbFile = null;
@@ -145,7 +158,18 @@ namespace WiiuVcExtractor
                 }
             }
 
-            if (!String.IsNullOrEmpty(extractedRomPath))
+            // Clean up any existing unmanaged resources
+            if (rpxFile != null)
+            {
+                rpxFile.Dispose();
+            }
+
+            if (psbFile != null)
+            {
+                psbFile.Dispose();
+            }
+
+            if (!string.IsNullOrEmpty(extractedRomPath))
             {
                 Console.WriteLine("============================================================================");
                 Console.WriteLine(sourcePath + " has been extracted to " + extractedRomPath + " successfully.");
@@ -157,8 +181,6 @@ namespace WiiuVcExtractor
                 Console.WriteLine("FAILURE: Could not successfully identify the rom type for " + sourcePath);
                 Console.WriteLine("============================================================================");
             }
-
-            
         }
     }
 }

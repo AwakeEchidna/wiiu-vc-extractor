@@ -1,97 +1,145 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO;
-using WiiuVcExtractor.Libraries;
-
-namespace WiiuVcExtractor.FileTypes
+﻿namespace WiiuVcExtractor.FileTypes
 {
+    using System.IO;
+    using System.Text;
+    using WiiuVcExtractor.Libraries;
+
+    /// <summary>
+    /// .pkg file header for PC Engine games.
+    /// </summary>
     public class PkgHeader
     {
-        private const int ENTRY_POINT_LENGTH = 0x40;
-        private const int OPTIONS_LENGTH = 0x20;
+        private const int EntryPointLength = 0x40;
+        private const int OptionsLength = 0x20;
 
-        private UInt32 pkgLength;
-        private UInt32 headerContentLength;
-        private string headerFilename;
+        private readonly uint pkgLength;
+        private readonly uint headerContentLength;
+        private readonly string headerFilename;
 
-        // TODO: Appears to be flags for the emulator, but unclear as to the specific purpose
-        private byte[] options;
+        // Appears to be flags for the emulator, but unclear as to the specific purpose
+        private readonly byte[] options;
 
-        private string entryPoint;
-        private byte[] entryPointBytes;
+        private readonly string entryPoint;
+        private readonly byte[] entryPointBytes;
 
-        // TODO: Appears to be identical to the first entry point in most cases, but more data is needed
-        private string entryPoint2;
-        private byte[] entryPoint2Bytes;
+        // Appears to be identical to the first entry point in most cases, but more data is needed
+        private readonly string entryPoint2;
+        private readonly byte[] entryPoint2Bytes;
 
         // Store the total length of the file for later validation
-        private long fileLength;
+        private readonly long fileLength;
 
-        public UInt32 PkgLength { get { return pkgLength; } }
-        public UInt32 Length { get { return headerContentLength + (uint)headerFilename.Length + 9; } }
-        public string Filename { get { return headerFilename; } }
-        public string EntryPoint { get { return entryPoint; } }
-        public string EntryPoint2 { get { return entryPoint2; } }
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PkgHeader"/> class.
+        /// </summary>
+        /// <param name="pkgFilePath">path to the .pkg file.</param>
         public PkgHeader(string pkgFilePath)
         {
             // read in the pceconfig.bin information and interpret it as the file header
             using (FileStream fs = new FileStream(pkgFilePath, FileMode.Open, FileAccess.Read))
             {
-                using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
-                {
-                    // Read in the header (Add 4 to consider the length part of the size)
-                    pkgLength = br.ReadUInt32LE() + 4;
+                using BinaryReader br = new BinaryReader(fs, new ASCIIEncoding());
 
-                    // Add 4 to calculate the header length since we are considering the pkgLength to be part of it (for easier offset calculation elsewhere)
-                    headerContentLength = br.ReadUInt32LE();
-                    headerFilename = br.ReadNullTerminatedString();
+                // Read in the header (Add 4 to consider the length part of the size)
+                this.pkgLength = br.ReadUInt32LE() + 4;
 
-                    options = br.ReadBytes(OPTIONS_LENGTH);
+                // Add 4 to calculate the header length since we are considering the pkgLength to be part of it (for easier offset calculation elsewhere)
+                this.headerContentLength = br.ReadUInt32LE();
+                this.headerFilename = br.ReadNullTerminatedString();
 
-                    entryPointBytes = br.ReadBytes(ENTRY_POINT_LENGTH);
-                    entryPoint2Bytes = br.ReadBytes(ENTRY_POINT_LENGTH);
+                this.options = br.ReadBytes(OptionsLength);
 
-                    // Parse the entry point name from each set of bytes
-                    entryPoint = entryPointBytes.ReadNullTerminatedString();
-                    entryPoint2 = entryPoint2Bytes.ReadNullTerminatedString();
-                }
+                this.entryPointBytes = br.ReadBytes(EntryPointLength);
+                this.entryPoint2Bytes = br.ReadBytes(EntryPointLength);
+
+                // Parse the entry point name from each set of bytes
+                this.entryPoint = this.entryPointBytes.ReadNullTerminatedString();
+                this.entryPoint2 = this.entryPoint2Bytes.ReadNullTerminatedString();
             }
 
-            fileLength = new FileInfo(pkgFilePath).Length;
+            this.fileLength = new FileInfo(pkgFilePath).Length;
         }
 
+        /// <summary>
+        /// Gets the length of the .pkg file.
+        /// </summary>
+        public uint PkgLength
+        {
+            get { return this.pkgLength; }
+        }
+
+        /// <summary>
+        /// Gets the length of the .pkg file header.
+        /// </summary>
+        public uint Length
+        {
+            get { return this.headerContentLength + (uint)this.headerFilename.Length + 9; }
+        }
+
+        /// <summary>
+        /// Gets the filename from the .pkg file header.
+        /// </summary>
+        public string Filename
+        {
+            get { return this.headerFilename; }
+        }
+
+        /// <summary>
+        /// Gets the options of the .pkg file.
+        /// </summary>
+        public byte[] Options
+        {
+            get { return this.options; }
+        }
+
+        /// <summary>
+        /// Gets the first entry point of the .pkg file.
+        /// </summary>
+        public string EntryPoint
+        {
+            get { return this.entryPoint; }
+        }
+
+        /// <summary>
+        /// Gets the second entry point of the .pkg file.
+        /// </summary>
+        public string EntryPoint2
+        {
+            get { return this.entryPoint2; }
+        }
+
+        /// <summary>
+        /// Whether the .pkg file header is valid.
+        /// </summary>
+        /// <returns>true if valid, false otherwise.</returns>
         public bool IsValid()
         {
             // Ensure the interpreted length from the header matches the actual file length
-            if (pkgLength != fileLength)
+            if (this.pkgLength != this.fileLength)
             {
                 return false;
             }
 
             // Ensure the header length is non-zero
-            if (headerContentLength < 1)
+            if (this.headerContentLength < 1)
             {
                 return false;
             }
 
             // Ensure header filename is populated
-            if (String.IsNullOrEmpty(headerFilename))
+            if (string.IsNullOrEmpty(this.headerFilename))
             {
                 return false;
             }
 
             // Ensure entry point is populated
-            if (String.IsNullOrEmpty(entryPoint))
+            if (string.IsNullOrEmpty(this.entryPoint))
             {
                 return false;
             }
 
             // Ensure entry point 2 is populated
-            if (String.IsNullOrEmpty(entryPoint2))
+            if (string.IsNullOrEmpty(this.entryPoint2))
             {
                 return false;
             }
@@ -99,15 +147,19 @@ namespace WiiuVcExtractor.FileTypes
             return true;
         }
 
+        /// <summary>
+        /// Generates a string summary of the .pkg file header.
+        /// </summary>
+        /// <returns>string summary of the .pkg file header.</returns>
         public override string ToString()
         {
             return "PkgHeader:\n" +
-                   "pkgLength: " + pkgLength.ToString() + "\n" +
-                   "headerLength" + Length.ToString() + "\n" +
-                   "headerContentLength: " + headerContentLength.ToString() + "\n" +
-                   "headerFilename: " + headerFilename + "\n" +
-                   "entryPoint: " + entryPoint + "\n" +
-                   "entryPoint2: " + entryPoint2 + "\n";
+                   "pkgLength: " + this.pkgLength.ToString() + "\n" +
+                   "headerLength" + this.Length.ToString() + "\n" +
+                   "headerContentLength: " + this.headerContentLength.ToString() + "\n" +
+                   "headerFilename: " + this.headerFilename + "\n" +
+                   "entryPoint: " + this.entryPoint + "\n" +
+                   "entryPoint2: " + this.entryPoint2 + "\n";
         }
     }
 }
