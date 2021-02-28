@@ -62,8 +62,16 @@
     <Compile Include="FileTypes\RpxSectionHeaderSort.cs" />
     <Compile Include="Libraries\EndianUtility.cs" />
     <Compile Include="Libraries\RomSizeDictionary.cs" />
+    <Compile Include="Libraries\Sdd1\BitplanesExtractor.cs" />
+    <Compile Include="Libraries\Sdd1\Compressor.cs" />
+    <Compile Include="Libraries\Sdd1\ContextModel.cs" />
+    <Compile Include="Libraries\Sdd1\GolombCodeEncoder.cs" />
+    <Compile Include="Libraries\Sdd1\Interleaver.cs" />
+    <Compile Include="Libraries\Sdd1\ProbabilityEstimationModule.cs" />
+    <Compile Include="Libraries\Sdd1\Sdd1Pointer.cs" />
     <Compile Include="Libraries\SnesPcmExtractor.cs" />
     <Compile Include="Libraries\RomNameDictionary.cs" />
+    <Compile Include="Libraries\SnesSdd1Extractor.cs" />
     <Compile Include="RomExtractors\GbaVcExtractor.cs" />
     <Compile Include="RomExtractors\DsVcExtractor.cs" />
     <Compile Include="RomExtractors\IRomExtractor.cs" />
