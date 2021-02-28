@@ -11,6 +11,8 @@ namespace WiiuVcExtractor.RomExtractors
     {
         private enum SnesHeaderType { NotDetermined, Unknown, HiROM, LoROM };
 
+        private const int VC_HEADER_SIZE = 0x30;
+
         private static readonly byte[] SNES_WUP_HEADER_CHECK = { 0x57, 0x55, 0x50, 0x2D, 0x4A };
         private const int SNES_HEADER_LENGTH = 32;
         private const int SNES_LOROM_HEADER_OFFSET = 0x7FC0;
@@ -44,6 +46,11 @@ namespace WiiuVcExtractor.RomExtractors
         private long romPosition;
         private string vcName;
         private long vcNamePosition;
+        private uint fileSize;
+        private long fileSizePosition;
+        private uint sdd1Offset;
+        private long sdd1OffsetPosition;
+        private uint sdd1DataOffset;
 
         private byte[] snesLoRomHeader;
         private byte[] snesHiRomHeader;
@@ -64,6 +71,10 @@ namespace WiiuVcExtractor.RomExtractors
             headerType = SnesHeaderType.NotDetermined;
             romPosition = 0;
             vcNamePosition = 0;
+            sdd1Offset = 0;
+            sdd1OffsetPosition = 0;
+            fileSize = 0;
+            fileSizePosition = 0;
 
             this.decompressedRomPath = decompressedRomPath;
         }
@@ -130,7 +141,7 @@ namespace WiiuVcExtractor.RomExtractors
 
                 Console.WriteLine("Getting rom data...");
 
-                byte[] pcmData;
+                byte[] appendedData;
 
                 // Browse to the romPosition in the file
                 using (FileStream fs = new FileStream(decompressedRomPath, FileMode.Open, FileAccess.Read))
@@ -145,12 +156,25 @@ namespace WiiuVcExtractor.RomExtractors
                         br.BaseStream.Seek(romPosition, SeekOrigin.Begin);
 
                         snesRomData = br.ReadBytes(romSize);
-                        pcmData = br.ReadBytes((int)(br.BaseStream.Length - romPosition + romSize));
+                        // Read in all data until the end of the file after the rom data based on parsed file size
+                        appendedData = br.ReadBytes((int)(fileSize - (VC_HEADER_SIZE + romSize)));
                     }
                 }
 
-                SnesPcmExtractor pcmExtract = new SnesPcmExtractor(snesRomData, pcmData);
+                SnesPcmExtractor pcmExtract = new SnesPcmExtractor(snesRomData, appendedData);
                 snesRomData = pcmExtract.ExtractPcmData();
+
+                if (sdd1DataOffset > 0)
+                {
+                    Console.WriteLine("Rom uses S-DD1, recompressing S-DD1 data...");
+                    long appendedDataSdd1DataOffset = sdd1DataOffset - (VC_HEADER_SIZE + romSize);
+                    SnesSdd1Extractor sdd1Extract = new SnesSdd1Extractor(snesRomData, appendedData, appendedDataSdd1DataOffset);
+                    snesRomData = sdd1Extract.ExtractSdd1Data();
+                }
+                else
+                {
+                    Console.WriteLine("Rom does not appear to use S-DD1");
+                }
 
                 Console.WriteLine("Writing to " + extractedRomPath + "...");
 
@@ -213,8 +237,26 @@ namespace WiiuVcExtractor.RomExtractors
                                     buffer[15] == 0x00)
                                 {
                                     romPosition = br.BaseStream.Position;
-                                    vcNamePosition = romPosition - 12;
+                                    fileSizePosition = romPosition - 44;   // 0x04 in the header
+                                    sdd1OffsetPosition = romPosition - 24; // 0x18 in the header
+                                    vcNamePosition = romPosition - 12;     // 0x24 in the header
                                     vcName = Encoding.ASCII.GetString(buffer, 4, 8);
+
+                                    // Seek back 44 bytes to gather the fileSize position
+                                    br.BaseStream.Seek(fileSizePosition, SeekOrigin.Begin);
+                                    fileSize = br.ReadUInt32LE();
+
+                                    // Seek back 24 bytes to gather the S-DD1 data offset
+                                    br.BaseStream.Seek(sdd1OffsetPosition, SeekOrigin.Begin);
+                                    sdd1Offset = br.ReadUInt32LE();
+
+                                    // Seek to the S-DD1 data offset and read the S-DD1 header (if any)
+                                    br.BaseStream.Seek(romPosition - VC_HEADER_SIZE + sdd1Offset, SeekOrigin.Begin);
+                                    sdd1DataOffset = br.ReadUInt32LE();
+
+                                    Console.WriteLine("File size is 0x{0:X}", fileSize);
+                                    Console.WriteLine("S-DD1 offset is 0x{0:X}", sdd1Offset);
+                                    Console.WriteLine("S-DD1 data offset is 0x{0:X}", sdd1DataOffset);
 
                                     DetermineHeaderType();
 
@@ -275,10 +317,10 @@ namespace WiiuVcExtractor.RomExtractors
                 {
                     if (verbose)
                     {
-                        Console.WriteLine("Could not determine header type since both HiROM and LoROM headers were valid.");
+                        Console.WriteLine("Could not determine header type since both HiROM and LoROM headers were valid, defaulting to LoROM.");
                     }
-                    // Both appear to be valid, could not determine which is the correct header
-                    headerType = SnesHeaderType.Unknown;
+                    // Both appear to be valid, use LoROM by default
+                    headerType = SnesHeaderType.LoROM;
                 }
                 else
                 {
