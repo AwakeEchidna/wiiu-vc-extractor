@@ -1,92 +1,14 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{94F25BB6-2459-4F3C-A61E-F04424EBDF69}</ProjectGuid>
+    <TargetFramework>net5.0</TargetFramework>
     <OutputType>Exe</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>WiiuVcExtractor</RootNamespace>
-    <AssemblyName>WiiuVcExtractor</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AssemblyName>wiiuvcextractor</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+    <DocumentationFile>bin\Release\WiiuVcExtractor.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="DotNetZip, Version=1.13.3.0, Culture=neutral, PublicKeyToken=6583c7c814667745, processorArchitecture=MSIL">
-      <HintPath>..\packages\DotNetZip.1.13.3\lib\net40\DotNetZip.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="FileTypes\MdfHeader.cs" />
-    <Compile Include="FileTypes\MdfPsbFile.cs" />
-    <Compile Include="FileTypes\PkgContentFile.cs" />
-    <Compile Include="FileTypes\PkgFile.cs" />
-    <Compile Include="FileTypes\PkgHeader.cs" />
-    <Compile Include="FileTypes\PsbChunkTable.cs" />
-    <Compile Include="FileTypes\PsbEntryTable.cs" />
-    <Compile Include="FileTypes\PsbFile.cs" />
-    <Compile Include="FileTypes\PsbFileInfoEntry.cs" />
-    <Compile Include="FileTypes\PsbHeader.cs" />
-    <Compile Include="FileTypes\PsbNameTable.cs" />
-    <Compile Include="FileTypes\SrlFile.cs" />
-    <Compile Include="FileTypes\RpxSectionHeader.cs" />
-    <Compile Include="FileTypes\RpxSectionHeaderSort.cs" />
-    <Compile Include="Libraries\EndianUtility.cs" />
-    <Compile Include="Libraries\RomSizeDictionary.cs" />
-    <Compile Include="Libraries\Sdd1\BitplanesExtractor.cs" />
-    <Compile Include="Libraries\Sdd1\Compressor.cs" />
-    <Compile Include="Libraries\Sdd1\ContextModel.cs" />
-    <Compile Include="Libraries\Sdd1\GolombCodeEncoder.cs" />
-    <Compile Include="Libraries\Sdd1\Interleaver.cs" />
-    <Compile Include="Libraries\Sdd1\ProbabilityEstimationModule.cs" />
-    <Compile Include="Libraries\Sdd1\Sdd1Pointer.cs" />
-    <Compile Include="Libraries\SnesPcmExtractor.cs" />
-    <Compile Include="Libraries\RomNameDictionary.cs" />
-    <Compile Include="Libraries\SnesSdd1Extractor.cs" />
-    <Compile Include="RomExtractors\GbaVcExtractor.cs" />
-    <Compile Include="RomExtractors\DsVcExtractor.cs" />
-    <Compile Include="RomExtractors\IRomExtractor.cs" />
-    <Compile Include="Libraries\mt19937ar.cs" />
-    <Compile Include="RomExtractors\FdsVcExtractor.cs" />
-    <Compile Include="RomExtractors\NesVcExtractor.cs" />
-    <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RomExtractors\PceVcExtractor.cs" />
-    <Compile Include="RomExtractors\SnesVcExtractor.cs" />
-    <Compile Include="FileTypes\RpxFile.cs" />
-    <Compile Include="FileTypes\RpxHeader.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
     <Content Include="dsromnames.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -105,14 +27,11 @@
     <Content Include="pceromnames.csv">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <None Include="packages.config" />
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
+  <ItemGroup>
+    <PackageReference Include="DotNetZip" Version="1.15.0" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" />
+    <PackageReference Include="System.Data.DataSetExtensions" Version="4.5.0" />
+  </ItemGroup>
 </Project>

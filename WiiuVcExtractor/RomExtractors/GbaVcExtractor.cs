@@ -1,27 +1,39 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.IO;
-using WiiuVcExtractor.FileTypes;
-using WiiuVcExtractor.Libraries;
-
-namespace WiiuVcExtractor.RomExtractors
+﻿namespace WiiuVcExtractor.RomExtractors
 {
+    using System;
+    using System.IO;
+    using System.Text;
+    using WiiuVcExtractor.FileTypes;
+    using WiiuVcExtractor.Libraries;
+
+    /// <summary>
+    /// GBA rom extractor.
+    /// </summary>
     public class GbaVcExtractor : IRomExtractor
     {
-        private const string GBA_DICTIONARY_CSV_PATH = "gbaromnames.csv";
+        private const string GbaDictionaryCsvPath = "gbaromnames.csv";
 
-        private const int GBA_ENTRY_POINT_LENGTH = 4;
+        // private const int GbaEntryPointLength = 4;
+        private const int GbaHeaderLength = 192;
 
-        private static readonly byte[] GBA_ENTRY_POINT_CHECK = {
-            0x2E, 0x00, 0x00, 0xEA
-        };
+        private const int HeaderBitmapOffset = 0x4;
+        private const int HeaderTitleOffset = 0xA0;
+        private const int HeaderTitleLength = 12;
+        private const int HeaderGameCodeOffset = 0xAC;
+        private const int HeaderGameCodeLength = 4;
+        private const int HeaderMakerCodeOffset = 0xB0;
+        private const int HeaderMakerCodeLength = 2;
+        private const int HeaderFixedValueOffset = 0xB2;
+        private const int HeaderFixedValueValue = 0x96;
 
-        private const int GBA_HEADER_LENGTH = 192;
+        private const byte AsciiSpace = 0x20;
+        private const byte AsciiZero = 0x30;
+        private const byte AsciiZ = 0x5A;
+        private const byte AsciiTilde = 0x7E;
 
         // Array of bytes matching the GBA logo at the beginning of the rom
-        private static readonly byte[] GBA_HEADER_CHECK = {
+        private static readonly byte[] GbaHeaderCheck =
+        {
             0x24, 0xFF, 0xAE, 0x51, 0x69, 0x9A, 0xA2, 0x21, 0x3D, 0x84, 0x82, 0x0A,
             0x84, 0xE4, 0x09, 0xAD, 0x11, 0x24, 0x8B, 0x98, 0xC0, 0x81, 0x7F, 0x21, 0xA3, 0x52, 0xBE, 0x19,
             0x93, 0x09, 0xCE, 0x20, 0x10, 0x46, 0x4A, 0x4A, 0xF8, 0x27, 0x31, 0xEC, 0x58, 0xC7, 0xE8, 0x33,
@@ -31,44 +43,38 @@ namespace WiiuVcExtractor.RomExtractors
             0x40, 0xA7, 0x0E, 0xFD, 0xFF, 0x52, 0xFE, 0x03, 0x6F, 0x95, 0x30, 0xF1, 0x97, 0xFB, 0xC0, 0x85,
             0x60, 0xD6, 0x80, 0x25, 0xA9, 0x63, 0xBE, 0x03, 0x01, 0x4E, 0x38, 0xE2, 0xF9, 0xA2, 0x34, 0xFF,
             0xBB, 0x3E, 0x03, 0x44, 0x78, 0x00, 0x90, 0xCB, 0x88, 0x11, 0x3A, 0x94, 0x65, 0xC0, 0x7C, 0x63,
-            0x87, 0xF0, 0x3C, 0xAF, 0xD6, 0x25, 0xE4, 0x8B, 0x38, 0x0A, 0xAC, 0x72, 0x21, 0xD4, 0xF8, 0x07
+            0x87, 0xF0, 0x3C, 0xAF, 0xD6, 0x25, 0xE4, 0x8B, 0x38, 0x0A, 0xAC, 0x72, 0x21, 0xD4, 0xF8, 0x07,
         };
 
-        private const int HEADER_BITMAP_OFFSET = 0x4;
-        private const int HEADER_TITLE_OFFSET = 0xA0;
-        private const int HEADER_TITLE_LENGTH = 12;
-        private const int HEADER_GAME_CODE_OFFSET = 0xAC;
-        private const int HEADER_GAME_CODE_LENGTH = 4;
-        private const int HEADER_MAKER_CODE_OFFSET = 0xB0;
-        private const int HEADER_MAKER_CODE_LENGTH = 2;
-        private const int HEADER_FIXED_VALUE_OFFSET = 0xB2;
-        private const int HEADER_FIXED_VALUE_VALUE = 0x96;
+        private readonly PsbFile psbFile;
+        private readonly RomNameDictionary gbaDictionary;
+        private readonly bool verbose;
 
-        private const byte ASCII_SPACE = 0x20;
-        private const byte ASCII_ZERO = 0x30;
-        private const byte ASCII_Z = 0x5A;
-        private const byte ASCII_TILDE = 0x7E;
-
-        private PsbFile psbFile;
-        private RomNameDictionary gbaDictionary;
         private byte[] gbaHeader;
 
         private string extractedRomPath;
         private string romCode;
         private string romName;
 
-        private bool verbose;
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="GbaVcExtractor"/> class.
+        /// </summary>
+        /// <param name="psbFile">PSB file to parse.</param>
+        /// <param name="verbose">whether to provide verbose output.</param>
         public GbaVcExtractor(PsbFile psbFile, bool verbose = false)
         {
             this.verbose = verbose;
-            string gbaDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, GBA_DICTIONARY_CSV_PATH);
+            string gbaDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, GbaDictionaryCsvPath);
 
-            gbaDictionary = new RomNameDictionary(gbaDictionaryPath);
+            this.gbaDictionary = new RomNameDictionary(gbaDictionaryPath);
 
             this.psbFile = psbFile;
         }
 
+        /// <summary>
+        /// Extracts GBA rom from the PSB file.
+        /// </summary>
+        /// <returns>path to extracted rom.</returns>
         public string ExtractRom()
         {
             // Quiet down the console during the extraction valid rom check
@@ -79,14 +85,14 @@ namespace WiiuVcExtractor.RomExtractors
                 Console.SetOut(consoleOutputStream);
 
                 // Get the rom name from the dictionary
-                romName = gbaDictionary.getRomName(romCode);
+                this.romName = this.gbaDictionary.GetRomName(this.romCode);
 
-                if (String.IsNullOrEmpty(romName))
+                if (string.IsNullOrEmpty(this.romName))
                 {
                     int titleLength = 0;
-                    while (titleLength < HEADER_TITLE_LENGTH)
+                    while (titleLength < HeaderTitleLength)
                     {
-                        if (gbaHeader[HEADER_TITLE_OFFSET + titleLength] == 0x00)
+                        if (this.gbaHeader[HeaderTitleOffset + titleLength] == 0x00)
                         {
                             break;
                         }
@@ -94,174 +100,176 @@ namespace WiiuVcExtractor.RomExtractors
                         titleLength++;
                     }
 
-                    romName = Encoding.ASCII.GetString(gbaHeader, HEADER_TITLE_OFFSET, titleLength);
+                    this.romName = Encoding.ASCII.GetString(this.gbaHeader, HeaderTitleOffset, titleLength);
 
                     // If a rom name could not be determined from the dictionary or rom, prompt the user
-                    if (String.IsNullOrEmpty(romName))
+                    if (string.IsNullOrEmpty(this.romName))
                     {
                         Console.WriteLine("Could not determine GBA rom name, please enter your desired filename:");
-                        romName = Console.ReadLine();
+                        this.romName = Console.ReadLine();
                     }
                 }
 
-                Console.WriteLine("GBA Rom Code: " + romCode);
-                Console.WriteLine("GBA Title: " + romName);
+                Console.WriteLine("GBA Rom Code: " + this.romCode);
+                Console.WriteLine("GBA Title: " + this.romName);
 
-                extractedRomPath = romName + ".gba";
+                this.extractedRomPath = this.romName + ".gba";
 
-                if (File.Exists(extractedRomPath))
+                if (File.Exists(this.extractedRomPath))
                 {
-                    File.Delete(extractedRomPath);
+                    File.Delete(this.extractedRomPath);
                 }
 
-                Console.WriteLine("Writing to " + extractedRomPath + "...");
+                Console.WriteLine("Writing to " + this.extractedRomPath + "...");
 
-                File.Move(psbFile.DecompressedPath, extractedRomPath);
+                File.Move(this.psbFile.DecompressedPath, this.extractedRomPath);
 
-                Console.WriteLine("GBA rom has been created successfully at " + extractedRomPath);
+                Console.WriteLine("GBA rom has been created successfully at " + this.extractedRomPath);
 
-                // Per issue https://github.com/wheatevo/wiiu-vc-extractor/issues/44 this should be unnecessary.
-                // Leaving the code in for now to allow for it to be enabled via an option in the future if desired.
-                // ensure the first 4 bytes of the rom file are 0x2E0000EA and then replace them if they are not
-                // FixEntryPoint(extractedRomPath);
-
-                return extractedRomPath;
+                return this.extractedRomPath;
             }
 
-            return "";
+            return string.Empty;
         }
 
+        /// <summary>
+        /// Whether the PSB file is a valid rom.
+        /// </summary>
+        /// <returns>true if valid, false otherwise.</returns>
         public bool IsValidRom()
         {
             Console.WriteLine("Checking if this is a GBA VC title...");
 
             // First check if this is a valid PSB file (need the alldata.psb.m):
-            if (psbFile != null)
+            if (this.psbFile != null)
             {
-                Console.WriteLine("Checking " + psbFile.DecompressedPath + "...");
-                if (!File.Exists(psbFile.DecompressedPath))
+                Console.WriteLine("Checking " + this.psbFile.DecompressedPath + "...");
+                if (!File.Exists(this.psbFile.DecompressedPath))
                 {
-                    Console.WriteLine("Could not find decompressed rom at " + psbFile.DecompressedPath);
+                    Console.WriteLine("Could not find decompressed rom at " + this.psbFile.DecompressedPath);
                     return false;
                 }
 
-                gbaHeader = new byte[GBA_HEADER_LENGTH];
+                this.gbaHeader = new byte[GbaHeaderLength];
 
                 // Read the rom's header into memory
-                using (FileStream fs = new FileStream(psbFile.DecompressedPath, FileMode.Open, FileAccess.Read))
+                using (FileStream fs = new FileStream(this.psbFile.DecompressedPath, FileMode.Open, FileAccess.Read))
                 {
-                    using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
-                    {
-                        gbaHeader = br.ReadBytes(GBA_HEADER_LENGTH);
-                    }
+                    using BinaryReader br = new BinaryReader(fs, new ASCIIEncoding());
+                    this.gbaHeader = br.ReadBytes(GbaHeaderLength);
                 }
 
-                if (verbose)
+                if (this.verbose)
                 {
-                    Console.WriteLine("GBA Header data: {0}", BitConverter.ToString(gbaHeader));
+                    Console.WriteLine("GBA Header data: {0}", BitConverter.ToString(this.gbaHeader));
                     Console.WriteLine("Checking for GBA boot bitmap...");
                 }
 
                 // Check the GBA boot bitmap
-                for (int i = HEADER_BITMAP_OFFSET; i < HEADER_BITMAP_OFFSET + GBA_HEADER_CHECK.Length; i++)
+                for (int i = HeaderBitmapOffset; i < HeaderBitmapOffset + GbaHeaderCheck.Length; i++)
                 {
-                    if (verbose)
+                    if (this.verbose)
                     {
-                        Console.WriteLine("Bitmap Character[{0}]: 0x{1:X}", i, gbaHeader[i]);
+                        Console.WriteLine("Bitmap Character[{0}]: 0x{1:X}", i, this.gbaHeader[i]);
                     }
 
-                    if (gbaHeader[i] != GBA_HEADER_CHECK[i - HEADER_BITMAP_OFFSET])
+                    if (this.gbaHeader[i] != GbaHeaderCheck[i - HeaderBitmapOffset])
                     {
-                        if (verbose)
+                        if (this.verbose)
                         {
                             Console.WriteLine("Could not find GBA boot bitmap! GBA rom not found.");
                         }
+
                         return false;
                     }
                 }
 
-                if (verbose)
+                if (this.verbose)
                 {
                     Console.WriteLine("Checking for valid title...");
                 }
 
                 // Ensure the title is set to valid characters
-                for (int i = HEADER_TITLE_OFFSET; i < HEADER_TITLE_OFFSET + HEADER_TITLE_LENGTH; i++)
+                for (int i = HeaderTitleOffset; i < HeaderTitleOffset + HeaderTitleLength; i++)
                 {
-                    if (verbose)
+                    if (this.verbose)
                     {
-                        Console.WriteLine("Title Character[{0}]: {1}", i, Convert.ToChar(gbaHeader[i]));
+                        Console.WriteLine("Title Character[{0}]: {1}", i, Convert.ToChar(this.gbaHeader[i]));
                     }
 
-                    if ((gbaHeader[i] < ASCII_SPACE || gbaHeader[i] > ASCII_TILDE) && gbaHeader[i] != 0x00)
+                    if ((this.gbaHeader[i] < AsciiSpace || this.gbaHeader[i] > AsciiTilde) && this.gbaHeader[i] != 0x00)
                     {
-                        if (verbose)
+                        if (this.verbose)
                         {
                             Console.WriteLine("Title character is invalid! GBA rom not found.");
                         }
+
                         return false;
                     }
                 }
 
-                if (verbose)
+                if (this.verbose)
                 {
                     Console.WriteLine("Checking for valid game code...");
                 }
 
                 // Ensure the game code is set to valid characters
-                for (int i = HEADER_GAME_CODE_OFFSET; i < HEADER_GAME_CODE_OFFSET + HEADER_GAME_CODE_LENGTH; i++)
+                for (int i = HeaderGameCodeOffset; i < HeaderGameCodeOffset + HeaderGameCodeLength; i++)
                 {
-                    if (verbose)
+                    if (this.verbose)
                     {
-                        Console.WriteLine("Game Code Character[{0}]: {1}", i, Convert.ToChar(gbaHeader[i]));
+                        Console.WriteLine("Game Code Character[{0}]: {1}", i, Convert.ToChar(this.gbaHeader[i]));
                     }
 
-                    if (gbaHeader[i] < ASCII_ZERO || gbaHeader[i] > ASCII_Z)
+                    if (this.gbaHeader[i] < AsciiZero || this.gbaHeader[i] > AsciiZ)
                     {
-                        if (verbose)
+                        if (this.verbose)
                         {
                             Console.WriteLine("Game code character is invalid! GBA rom not found.");
                         }
+
                         return false;
                     }
                 }
 
-                romCode = Encoding.ASCII.GetString(gbaHeader, HEADER_GAME_CODE_OFFSET, HEADER_GAME_CODE_LENGTH);
+                this.romCode = Encoding.ASCII.GetString(this.gbaHeader, HeaderGameCodeOffset, HeaderGameCodeLength);
 
-                if (verbose)
+                if (this.verbose)
                 {
                     Console.WriteLine("Checking for valid maker code...");
                 }
 
                 // Check the maker code
-                for (int i = HEADER_MAKER_CODE_OFFSET; i < HEADER_MAKER_CODE_OFFSET + HEADER_MAKER_CODE_LENGTH; i++)
+                for (int i = HeaderMakerCodeOffset; i < HeaderMakerCodeOffset + HeaderMakerCodeLength; i++)
                 {
-                    if (verbose)
+                    if (this.verbose)
                     {
-                        Console.WriteLine("Maker Code Character[{0}]: {1}", i, Convert.ToChar(gbaHeader[i]));
+                        Console.WriteLine("Maker Code Character[{0}]: {1}", i, Convert.ToChar(this.gbaHeader[i]));
                     }
 
-                    if (gbaHeader[i] < ASCII_ZERO || gbaHeader[i] > ASCII_Z)
+                    if (this.gbaHeader[i] < AsciiZero || this.gbaHeader[i] > AsciiZ)
                     {
-                        if (verbose)
+                        if (this.verbose)
                         {
                             Console.WriteLine("Maker code character is invalid! GBA rom not found.");
                         }
+
                         return false;
                     }
                 }
 
-                if (verbose)
+                if (this.verbose)
                 {
                     Console.WriteLine("Checking for valid fixed header value...");
                 }
 
-                if (gbaHeader[HEADER_FIXED_VALUE_OFFSET] != HEADER_FIXED_VALUE_VALUE)
+                if (this.gbaHeader[HeaderFixedValueOffset] != HeaderFixedValueValue)
                 {
-                    if (verbose)
+                    if (this.verbose)
                     {
                         Console.WriteLine("Header fixed value is invalid! GBA rom not found.");
                     }
+
                     return false;
                 }
 
@@ -269,52 +277,10 @@ namespace WiiuVcExtractor.RomExtractors
                 return true;
             }
 
-            if (verbose)
+            if (this.verbose)
             {
                 Console.WriteLine("PSB File is not set! Cannot detect GBA Rom.");
             }
-
-            return false;
-        }
-
-        private bool FixEntryPoint(string path)
-        {
-            Console.WriteLine("Reading current GBA rom entry point...");
-            byte[] currentEntryPoint = new byte[GBA_ENTRY_POINT_LENGTH]; ;
-
-            using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read))
-            {
-                using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
-                {
-                    // Read in the current entry point
-                    currentEntryPoint = br.ReadBytes(GBA_ENTRY_POINT_LENGTH);
-                }
-            }
-
-            for (int i = 0; i < currentEntryPoint.Length; i++)
-            {
-                if (verbose)
-                {
-                    Console.WriteLine("Entry Point Byte[{0}]: 0x{1:X}", i, currentEntryPoint[i]);
-                }
-
-                if (currentEntryPoint[i] != GBA_ENTRY_POINT_CHECK[i])
-                {
-                    Console.WriteLine("GBA rom entry point byte[{0}]: {1:X} is not equal to expected entry point byte[{0}]: {2:X}, need to replace current entry point.", i, currentEntryPoint[i], GBA_ENTRY_POINT_CHECK[i]);
-
-                    // Open the file and replace the first 4 bytes
-                    using (FileStream fs = new FileStream(path, FileMode.Open))
-                    {
-                        fs.Write(GBA_ENTRY_POINT_CHECK, 0, GBA_ENTRY_POINT_LENGTH);
-                    }
-
-                    Console.WriteLine("GBA rom entry point has been replaced.");
-
-                    return true;
-                }
-            }
-
-            Console.WriteLine("All GBA rom entry point values are as expected.");
 
             return false;
         }

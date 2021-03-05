@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25123.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30523.141
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WiiuVcExtractor", "WiiuVcExtractor\WiiuVcExtractor.csproj", "{94F25BB6-2459-4F3C-A61E-F04424EBDF69}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WiiuVcExtractor", "WiiuVcExtractor\WiiuVcExtractor.csproj", "{94F25BB6-2459-4F3C-A61E-F04424EBDF69}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WiiuVcExtractorTests", "WiiuVcExtractorTests\WiiuVcExtractorTests.csproj", "{6F502CEC-0CD3-4937-A8AA-B736EFECA724}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,8 +17,15 @@ Global
 		{94F25BB6-2459-4F3C-A61E-F04424EBDF69}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{94F25BB6-2459-4F3C-A61E-F04424EBDF69}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{94F25BB6-2459-4F3C-A61E-F04424EBDF69}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F502CEC-0CD3-4937-A8AA-B736EFECA724}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F502CEC-0CD3-4937-A8AA-B736EFECA724}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F502CEC-0CD3-4937-A8AA-B736EFECA724}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F502CEC-0CD3-4937-A8AA-B736EFECA724}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {001173A1-7CDF-4436-8B58-7337976847C8}
 	EndGlobalSection
 EndGlobal

@@ -1,30 +1,43 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.IO;
-using WiiuVcExtractor.Libraries;
-
-namespace WiiuVcExtractor.FileTypes
+﻿namespace WiiuVcExtractor.FileTypes
 {
+    using System;
+
+    /// <summary>
+    /// SRL file for DS rom extraction.
+    /// </summary>
     public class SrlFile
     {
         // Location of input file
-        string path;
+        private readonly string path;
 
-        bool verbose;
-
-        // Return location of input file
-        public string Path { get { return path; } }
-
-        // Constructor - set path of srl file and output file, and verbosity
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SrlFile"/> class.
+        /// </summary>
+        /// <param name="srlPath">path to SRL file.</param>
+        /// <param name="verbose">whether to provide verbose output.</param>
         public SrlFile(string srlPath, bool verbose = false)
         {
-            path = srlPath;
+            this.path = srlPath;
 
-            this.verbose = verbose;
+            if (verbose)
+            {
+                Console.WriteLine("Constructing SRC file at {0}", srlPath);
+            }
         }
 
-        // Check file extension of file path
+        /// <summary>
+        /// Gets location of input file.
+        /// </summary>
+        public string Path
+        {
+            get { return this.path; }
+        }
+
+        /// <summary>
+        /// Whether the given path is an SRL file.
+        /// </summary>
+        /// <param name="srlPath">path to file.</param>
+        /// <returns>true if it is an SRL file, false otherwise.</returns>
         public static bool IsSrl(string srlPath)
         {
             if (System.IO.Path.GetExtension(srlPath).CompareTo(".srl") == 0)

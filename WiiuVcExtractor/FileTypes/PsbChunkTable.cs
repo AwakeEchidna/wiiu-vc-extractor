@@ -1,58 +1,72 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO;
-using WiiuVcExtractor.Libraries;
-
-namespace WiiuVcExtractor.FileTypes
+﻿namespace WiiuVcExtractor.FileTypes
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Text;
+    using WiiuVcExtractor.Libraries;
+
+    /// <summary>
+    /// PSB file chunk table.
+    /// </summary>
     public class PsbChunkTable
     {
-        List<UInt32> offsets;
-        List<UInt32> lengths;
-        byte[] chunkData;
-
-        public List<UInt32> Offsets { get { return offsets; } }
-        public List<UInt32> Lengths { get { return lengths; } }
-        public byte[] ChunkData { get { return chunkData; } }
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PsbChunkTable"/> class.
+        /// </summary>
+        /// <param name="psbData">The PSB data to parse.</param>
+        /// <param name="chunkOffsetsOffset">The offset to begin reading chunk offset data.</param>
+        /// <param name="chunkLengthsOffset">The offset to begin reading chunk length data.</param>
+        /// <param name="chunkDataOffset">The offset to begni reading chunk data.</param>
         public PsbChunkTable(byte[] psbData, long chunkOffsetsOffset, long chunkLengthsOffset, long chunkDataOffset)
         {
             // Initialize the name table from the passed data
-            using (MemoryStream ms = new MemoryStream(psbData))
+            using MemoryStream ms = new MemoryStream(psbData);
+            ms.Seek(chunkOffsetsOffset, SeekOrigin.Begin);
+            this.Offsets = this.ReadChunkTableValues(ms);
+
+            ms.Seek(chunkLengthsOffset, SeekOrigin.Begin);
+            this.Lengths = this.ReadChunkTableValues(ms);
+
+            if (this.Offsets.Count != this.Lengths.Count)
             {
-                ms.Seek(chunkOffsetsOffset, SeekOrigin.Begin);
-                offsets = ReadChunkTableValues(ms);
+                throw new InvalidOperationException("The lengths of the chunk offsets list and the chunk lengths list differ.");
+            }
 
-                ms.Seek(chunkLengthsOffset, SeekOrigin.Begin);
-                lengths = ReadChunkTableValues(ms);
+            // Only attempt to read in the chunks if they exist in the file
+            if (this.Offsets.Count > 0 && psbData.Length > chunkDataOffset)
+            {
+                ms.Seek(chunkDataOffset, SeekOrigin.Begin);
 
-                if (offsets.Count != lengths.Count)
-                {
-                    throw new InvalidOperationException("The lengths of the chunk offsets list and the chunk lengths list differ.");
-                }
-
-                // Only attempt to read in the chunks if they exist in the file
-                if (offsets.Count > 0 && psbData.Length > chunkDataOffset)
-                {
-                    ms.Seek(chunkDataOffset, SeekOrigin.Begin);
-                    // TODO: Add code to read in chunks, may not be necessary for the GBA extraction
-                }
+                // TODO: Add code to read in chunks, may not be necessary for the GBA extraction
             }
         }
 
-        private List<UInt32> ReadChunkTableValues(MemoryStream ms)
+        /// <summary>
+        /// Gets PSB chunk offsets. Each offset indicates when a chunk begins in the PSB chunk table.
+        /// </summary>
+        public List<uint> Offsets { get; }
+
+        /// <summary>
+        /// Gets PSB chunk lengths.
+        /// </summary>
+        public List<uint> Lengths { get; }
+
+        /// <summary>
+        /// Gets PSB chunk data (currently unused).
+        /// </summary>
+        public byte[] ChunkData { get; }
+
+        private List<uint> ReadChunkTableValues(MemoryStream ms)
         {
-            List<UInt32> valueList = new List<uint>();
+            List<uint> valueList = new List<uint>();
 
             using (BinaryReader br = new BinaryReader(ms, new ASCIIEncoding(), true))
             {
                 // get the offset information
                 byte type = br.ReadByte();
 
-                // Get the size of each object in bytes            
+                // Get the size of each object in bytes
                 int countByteSize = type - 12;
                 uint count = 0;
 
@@ -72,7 +86,7 @@ namespace WiiuVcExtractor.FileTypes
                 byte entrySizeType = br.ReadByte();
                 int entryByteSize = entrySizeType - 12;
 
-                UInt32 value = 0;
+                uint value = 0;
 
                 // Read in the values
                 for (int i = 0; i < count; i++)
@@ -81,6 +95,7 @@ namespace WiiuVcExtractor.FileTypes
                     {
                         value = br.ReadByte();
                     }
+
                     if (entryByteSize == 2)
                     {
                         value = EndianUtility.ReadUInt16LE(br);

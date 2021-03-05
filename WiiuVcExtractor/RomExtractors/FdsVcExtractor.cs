@@ -1,26 +1,35 @@
-﻿using System;
-using System.Text;
-using System.IO;
-using WiiuVcExtractor.FileTypes;
-using WiiuVcExtractor.Libraries;
-
-namespace WiiuVcExtractor.RomExtractors
+﻿namespace WiiuVcExtractor.RomExtractors
 {
+    using System;
+    using System.IO;
+    using System.Text;
+    using WiiuVcExtractor.FileTypes;
+    using WiiuVcExtractor.Libraries;
+
+    /// <summary>
+    /// FDS VC extractor.
+    /// </summary>
     public class FdsVcExtractor : IRomExtractor
     {
-        // Famicom Disk System header
-        private static readonly byte[] FDS_HEADER_CHECK = {0x01, 0x2A, 0x4E,
-            0x49, 0x4E, 0x54, 0x45, 0x4E, 0x44, 0x4F, 0x2D, 0x48, 0x56, 0x43,
-            0x2A};
-        private const int FDS_HEADER_LENGTH = 16;
-        private const int VC_NAME_LENGTH = 8;
-        private const int VC_NAME_PADDING = 8;
-        private const int fdsDiskSize = 65500;
-        private const int qdDiskSize = 0x10000;
-        private const string NES_DICTIONARY_CSV_PATH = "nesromnames.csv";
+        private const int FdsHeaderLength = 16;
+        private const int VcNameLength = 8;
+        private const int VcNamePadding = 8;
+        private const int FdsDiskSize = 65500;
+        private const int QdDiskSize = 0x10000;
+        private const string NesDictionaryCsvPath = "nesromnames.csv";
 
-        private RpxFile rpxFile;
-        private RomNameDictionary nesDictionary;
+        // Famicom Disk System header
+        private static readonly byte[] FdsHeaderCheck =
+        {
+            0x01, 0x2A, 0x4E,
+            0x49, 0x4E, 0x54, 0x45, 0x4E, 0x44, 0x4F, 0x2D, 0x48, 0x56, 0x43,
+            0x2A,
+        };
+
+        private readonly RpxFile rpxFile;
+        private readonly RomNameDictionary nesDictionary;
+        private readonly byte[] fdsRomHeader;
+        private readonly bool verbose;
 
         private string extractedRomPath;
         private string romName;
@@ -29,28 +38,34 @@ namespace WiiuVcExtractor.RomExtractors
         private long vcNamePosition;
         private int numberOfSides;
 
-        private byte[] fdsRomHeader;
         private byte[] qdRomData;
         private byte[] fullGameDataQD;
         private byte[] fullGameDataFDS;
 
-        private bool verbose;
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FdsVcExtractor"/> class.
+        /// </summary>
+        /// <param name="rpxFile">RPX file to parse.</param>
+        /// <param name="verbose">whether to provide verbose output.</param>
         public FdsVcExtractor(RpxFile rpxFile, bool verbose = false)
         {
             this.verbose = verbose;
             string nesDictionaryPath = Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory, NES_DICTIONARY_CSV_PATH);
+                AppDomain.CurrentDomain.BaseDirectory, NesDictionaryCsvPath);
 
-            nesDictionary = new RomNameDictionary(nesDictionaryPath);
-            fdsRomHeader = new byte[FDS_HEADER_LENGTH];
-            romPosition = 0;
-            vcNamePosition = 0;
-            numberOfSides = 1;
+            this.nesDictionary = new RomNameDictionary(nesDictionaryPath);
+            this.fdsRomHeader = new byte[FdsHeaderLength];
+            this.romPosition = 0;
+            this.vcNamePosition = 0;
+            this.numberOfSides = 1;
 
             this.rpxFile = rpxFile;
         }
 
+        /// <summary>
+        /// Extracts FDS rom from RPX file.
+        /// </summary>
+        /// <returns>path to the extracted rom.</returns>
         public string ExtractRom()
         {
             // Quiet down the console during the extraction valid rom check
@@ -60,158 +75,134 @@ namespace WiiuVcExtractor.RomExtractors
             {
                 Console.SetOut(consoleOutputStream);
 
-                // Browse to the romPosition in the file and look for the WUP 
+                // Browse to the romPosition in the file and look for the WUP
                 // string 16 bytes before
-                using (FileStream fs = new FileStream(rpxFile.DecompressedPath, 
-                    FileMode.Open, FileAccess.Read))
+                using FileStream fs = new FileStream(this.rpxFile.DecompressedPath, FileMode.Open, FileAccess.Read);
+                using BinaryReader br = new BinaryReader(fs, new ASCIIEncoding());
+                br.BaseStream.Seek(this.vcNamePosition, SeekOrigin.Begin);
+
+                // read in the VC rom name
+                this.vcName = Encoding.ASCII.GetString(br.ReadBytes(VcNameLength));
+                this.romName = this.nesDictionary.GetRomName(this.vcName);
+
+                // If a rom name could not be determined, prompt the user
+                if (string.IsNullOrEmpty(this.romName))
                 {
-                    using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
+                    Console.WriteLine("Could not determine rom name, " +
+                        "please enter your desired filename:");
+                    this.romName = Console.ReadLine();
+                }
+
+                Console.WriteLine("Virtual Console Title: " + this.vcName);
+                Console.WriteLine("FDS Title: " + this.romName);
+
+                this.extractedRomPath = this.romName + ".fds";
+
+                br.ReadBytes(VcNamePadding);
+
+                // We are currently at the FDS header's position again,
+                // read past it
+                br.ReadBytes(FdsHeaderLength);
+
+                // Determine the rom's size - find number of disk sides
+                //
+                // All FDS disk sides are 65500 bytes (0xFFDC bytes)
+                //
+                // These are in QuickDisk format, which are either
+                // 0x10000, 0x20000, 0x30000, or 0x40000 bytes in length, depending on number of sides
+                using (FileStream fsDskChk = new FileStream(this.rpxFile.DecompressedPath, FileMode.Open, FileAccess.Read))
+                {
+                    using BinaryReader brDskChk = new BinaryReader(fsDskChk, new ASCIIEncoding());
+
+                    // Bool to account for correct header
+                    bool headerValid = true;
+
+                    // First side is known to exist, so seek ahead to next side
+                    brDskChk.BaseStream.Seek(this.vcNamePosition, SeekOrigin.Begin);
+                    brDskChk.ReadBytes(VcNameLength);
+                    brDskChk.ReadBytes(VcNamePadding);
+
+                    // OK, currently at beginning of first side
+                    // Now, read to the next side
+                    brDskChk.ReadBytes(QdDiskSize);
+
+                    // Check for Nintendo header until it doesn't match
+                    while (headerValid)
                     {
-                        br.BaseStream.Seek(vcNamePosition, SeekOrigin.Begin);
+                        // Check header
+                        // Ensure the rest of the header is valid, except final byte (manufacturer code)
+                        // Read in 2nd disk header
+                        byte[] headerBuffer = brDskChk.ReadBytes(FdsHeaderLength);
 
-                        // read in the VC rom name
-                        vcName = Encoding.ASCII.GetString(br.ReadBytes(VC_NAME_LENGTH));
-                        romName = nesDictionary.getRomName(vcName);
-
-                        // If a rom name could not be determined, prompt the user
-                        if (String.IsNullOrEmpty(romName))
+                        // Iterate through buffer and header
+                        for (int i = 0; i < FdsHeaderCheck.Length && headerValid; i++)
                         {
-                            Console.WriteLine("Could not determine rom name, " +
-                                "please enter your desired filename:");
-                            romName = Console.ReadLine();
-                        }
-
-                        Console.WriteLine("Virtual Console Title: " + vcName);
-                        Console.WriteLine("FDS Title: " + romName);
-
-                        extractedRomPath = romName + ".fds";
-
-                        br.ReadBytes(VC_NAME_PADDING);
-
-                        // We are currently at the FDS header's position again, 
-                        // read past it
-                        br.ReadBytes(FDS_HEADER_LENGTH);
-
-                        // Determine the rom's size - find number of disk sides
-                        //
-                        // All FDS disk sides are 65500 bytes (0xFFDC bytes)
-                        //
-                        // These are in QuickDisk format, which are either
-                        // 0x10000, 0x20000, 0x30000, or 0x40000 bytes in length, depending on number of sides
-                        using (FileStream fsDskChk = new FileStream(rpxFile.DecompressedPath,
-                                FileMode.Open, FileAccess.Read))
-                        {
-                            using (BinaryReader brDskChk = new BinaryReader(fsDskChk, new ASCIIEncoding()))
+                            // Compare byte at buffer position to corresponding byte in header
+                            if (headerBuffer[i] != FdsHeaderCheck[i])
                             {
-                                // Bool to account for correct header
-                                bool headerValid = true;
-
-                                // First side is known to exist, so seek ahead to next side
-                                brDskChk.BaseStream.Seek(vcNamePosition, SeekOrigin.Begin);
-                                brDskChk.ReadBytes(VC_NAME_LENGTH);
-                                brDskChk.ReadBytes(VC_NAME_PADDING);
-                                // OK, currently at beginning of first side
-                                // Now, read to the next side
-                                brDskChk.ReadBytes(qdDiskSize);
-
-                                // Check for Nintendo header until it doesn't match
-                                while (headerValid)
-                                {
-                                    // Check header
-                                    // Ensure the rest of the header is valid, except final byte (manufacturer code)
-                                    // Read in 2nd disk header
-                                    byte[] headerBuffer = brDskChk.ReadBytes(FDS_HEADER_LENGTH);
-
-                                    // Iterate through buffer and header
-                                    for (int i = 0; i < FDS_HEADER_CHECK.Length && headerValid; i++)
-                                    {
-                                        // Compare byte at buffer position to corresponding byte in header
-                                        if (headerBuffer[i] != FDS_HEADER_CHECK[i])
-                                        {
-                                            // If they don't match, header is wrong - end loops
-                                            headerValid = false;
-                                        }
-                                    }
-
-                                    // If the header is valid, increment side count and continue
-                                    if (headerValid)
-                                    {
-                                        numberOfSides++;
-                                        // Now, read to the next side - account for header already read
-                                        brDskChk.ReadBytes(qdDiskSize - FDS_HEADER_LENGTH);
-                                    }                                    
-                                }
+                                // If they don't match, header is wrong - end loops
+                                headerValid = false;
                             }
                         }
 
-                        // Set size of full QD and FDS game using number of disks
-                        fullGameDataQD = new byte[qdDiskSize * numberOfSides];
-                        fullGameDataFDS = new byte[fdsDiskSize * numberOfSides];
-
-                        Console.WriteLine("Number of Disks: " + numberOfSides);
-                        Console.WriteLine("Getting rom data...");
-
-                        // From the position at the end of the header, read the rest of the rom
-                        qdRomData = br.ReadBytes(-FDS_HEADER_LENGTH + qdDiskSize * numberOfSides);
-
-                        // Copy the FDS header (determined by IsValidRom) and the rom data to a full-game byte array
-                        Buffer.BlockCopy(fdsRomHeader, 0, fullGameDataQD, 0, fdsRomHeader.Length);
-                        Buffer.BlockCopy(qdRomData, 0, fullGameDataQD, fdsRomHeader.Length, qdRomData.Length);
-
-                        Console.WriteLine("Writing to " + extractedRomPath + "...");
-
-                        using (BinaryWriter bw = new BinaryWriter(File.Open(
-                                extractedRomPath, FileMode.Create)))
+                        // If the header is valid, increment side count and continue
+                        if (headerValid)
                         {
-                            // Einstein95's qd2fds.py
-                            // Convert QD to FDS
-                            //
-                            // Convert each side of disk, then insert each into FDS output game data array
-                            for (int disk = 0; disk < numberOfSides; disk++)
+                            this.numberOfSides++;
+
+                            // Now, read to the next side - account for header already read
+                            brDskChk.ReadBytes(QdDiskSize - FdsHeaderLength);
+                        }
+                    }
+                }
+
+                // Set size of full QD and FDS game using number of disks
+                this.fullGameDataQD = new byte[QdDiskSize * this.numberOfSides];
+                this.fullGameDataFDS = new byte[FdsDiskSize * this.numberOfSides];
+
+                Console.WriteLine("Number of Disks: " + this.numberOfSides);
+                Console.WriteLine("Getting rom data...");
+
+                // From the position at the end of the header, read the rest of the rom
+                this.qdRomData = br.ReadBytes(-FdsHeaderLength + (QdDiskSize * this.numberOfSides));
+
+                if (this.verbose)
+                {
+                    Console.WriteLine("FDS QD rom data size: {0}", this.qdRomData.Length);
+                }
+
+                // Copy the FDS header (determined by IsValidRom) and the rom data to a full-game byte array
+                Buffer.BlockCopy(this.fdsRomHeader, 0, this.fullGameDataQD, 0, this.fdsRomHeader.Length);
+                Buffer.BlockCopy(this.qdRomData, 0, this.fullGameDataQD, this.fdsRomHeader.Length, this.qdRomData.Length);
+
+                Console.WriteLine("Writing to " + this.extractedRomPath + "...");
+
+                using (BinaryWriter bw = new BinaryWriter(File.Open(
+                        this.extractedRomPath, FileMode.Create)))
+                {
+                    // Einstein95's qd2fds.py
+                    // Convert QD to FDS
+                    //
+                    // Convert each side of disk, then insert each into FDS output game data array
+                    for (int disk = 0; disk < this.numberOfSides; disk++)
+                    {
+                        // Get current disk data
+                        byte[] currentDisk = new byte[QdDiskSize];
+                        Buffer.BlockCopy(this.fullGameDataQD, disk * QdDiskSize, currentDisk, 0, QdDiskSize);
+
+                        // Remove bytes at offsets 0x38 and 0x39
+                        for (int i = 0x38; i + 2 < currentDisk.Length; i++)
+                        {
+                            currentDisk[i] = currentDisk[i + 2];
+                            currentDisk[i + 2] = 0;
+                        }
+
+                        int position = 0x3A;
+
+                        try
+                        {
+                            while (currentDisk[position + 2] == 3)
                             {
-                                // Get current disk data
-                                byte[] currentDisk = new byte[qdDiskSize];
-                                Buffer.BlockCopy(fullGameDataQD, disk*qdDiskSize, currentDisk, 0, qdDiskSize);
-
-                                // Remove bytes at offsets 0x38 and 0x39
-                                for (int i = 0x38; i + 2 < currentDisk.Length; i++)
-                                {
-                                    currentDisk[i] = currentDisk[i + 2];
-                                    currentDisk[i + 2] = 0;
-                                }
-
-                                int position = 0x3A;
-
-                                try
-                                {
-                                    while(currentDisk[position+2] == 3)
-                                    {
-                                        // Delete 2 bytes
-                                        for(int i = position; i+2 < currentDisk.Length; i++)
-                                        {
-                                            currentDisk[i] = currentDisk[i + 2];
-                                            currentDisk[i + 2] = 0;
-                                        }
-
-                                        int end2 = currentDisk[position + 0xD];
-                                        int end1 = currentDisk[position + 0xE];
-                                        string fileSizeText = end1.ToString("X2") + end2.ToString("X2");
-                                        int fileSize = int.Parse(fileSizeText, System.Globalization.NumberStyles.HexNumber);
-
-                                        // Delete 2 bytes
-                                        for (int i = position + 0x10; i + 2 < currentDisk.Length; i++)
-                                        {
-                                            currentDisk[i] = currentDisk[i + 2];
-                                            currentDisk[i + 2] = 0;
-                                        }
-
-                                        position += 0x11 + fileSize;
-                                    }
-                                }
-                                catch (IndexOutOfRangeException)
-                                {
-                                }
-
                                 // Delete 2 bytes
                                 for (int i = position; i + 2 < currentDisk.Length; i++)
                                 {
@@ -219,84 +210,104 @@ namespace WiiuVcExtractor.RomExtractors
                                     currentDisk[i + 2] = 0;
                                 }
 
-                                // Copy current disk data to the full FDS game data array at the correct position for the disk
-                                Buffer.BlockCopy(currentDisk, 0, fullGameDataFDS, disk * fdsDiskSize, fdsDiskSize);
+                                int end2 = currentDisk[position + 0xD];
+                                int end1 = currentDisk[position + 0xE];
+                                string fileSizeText = end1.ToString("X2") + end2.ToString("X2");
+                                int fileSize = int.Parse(fileSizeText, System.Globalization.NumberStyles.HexNumber);
+
+                                // Delete 2 bytes
+                                for (int i = position + 0x10; i + 2 < currentDisk.Length; i++)
+                                {
+                                    currentDisk[i] = currentDisk[i + 2];
+                                    currentDisk[i + 2] = 0;
+                                }
+
+                                position += 0x11 + fileSize;
                             }
-
-                            Console.WriteLine("Total FDS rom size: " + fullGameDataFDS.Length + " Bytes");
-
-                            Console.WriteLine("Writing rom data...");
-                            bw.Write(fullGameDataFDS);
+                        }
+                        catch (IndexOutOfRangeException)
+                        {
                         }
 
-                        Console.WriteLine("Famicom Disk System rom has been " +
-                            "created successfully at " + extractedRomPath);
+                        // Delete 2 bytes
+                        for (int i = position; i + 2 < currentDisk.Length; i++)
+                        {
+                            currentDisk[i] = currentDisk[i + 2];
+                            currentDisk[i + 2] = 0;
+                        }
+
+                        // Copy current disk data to the full FDS game data array at the correct position for the disk
+                        Buffer.BlockCopy(currentDisk, 0, this.fullGameDataFDS, disk * FdsDiskSize, FdsDiskSize);
                     }
+
+                    Console.WriteLine("Total FDS rom size: " + this.fullGameDataFDS.Length + " Bytes");
+
+                    Console.WriteLine("Writing rom data...");
+                    bw.Write(this.fullGameDataFDS);
                 }
 
+                Console.WriteLine("Famicom Disk System rom has been " +
+                    "created successfully at " + this.extractedRomPath);
             }
 
-            return extractedRomPath;
+            return this.extractedRomPath;
         }
 
-        // Determines if this is a valid FDS ROM
+        /// <summary>
+        /// Determines if this is a valid FDS ROM.
+        /// </summary>
+        /// <returns>true if valid, false otherwise.</returns>
         public bool IsValidRom()
         {
             Console.WriteLine("Checking if this is a Famicom Disk System VC title...");
 
             // First check if this is a valid ELF file:
-            if (rpxFile != null)
+            if (this.rpxFile != null)
             {
-                Console.WriteLine("Checking " + rpxFile.DecompressedPath + "...");
-                if (!File.Exists(rpxFile.DecompressedPath))
+                Console.WriteLine("Checking " + this.rpxFile.DecompressedPath + "...");
+                if (!File.Exists(this.rpxFile.DecompressedPath))
                 {
-                    Console.WriteLine("Could not find decompressed RPX at " + 
-                        rpxFile.DecompressedPath);
+                    Console.WriteLine("Could not find decompressed RPX at " +
+                        this.rpxFile.DecompressedPath);
                     return false;
                 }
 
-                byte[] headerBuffer = new byte[FDS_HEADER_LENGTH];
+                byte[] headerBuffer = new byte[FdsHeaderLength];
 
                 // Search the decompressed RPX file for the FDS header
-                using (FileStream fs = new FileStream(rpxFile.DecompressedPath, 
-                    FileMode.Open, FileAccess.Read))
+                using FileStream fs = new FileStream(this.rpxFile.DecompressedPath, FileMode.Open, FileAccess.Read);
+                using BinaryReader br = new BinaryReader(fs, new ASCIIEncoding());
+                while (br.BaseStream.Position != br.BaseStream.Length)
                 {
-                    using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
+                    byte[] buffer = br.ReadBytes(FdsHeaderLength);
+
+                    // Check the FDS header
+                    if (buffer[0] == FdsHeaderCheck[0])
                     {
-                        while (br.BaseStream.Position != br.BaseStream.Length)
+                        Array.Copy(buffer, headerBuffer, FdsHeaderLength);
+
+                        bool headerValid = true;
+
+                        // Ensure the rest of the header is valid, except final byte (manufacturer code)
+                        for (int i = 1; i < FdsHeaderCheck.Length && headerValid; i++)
                         {
-                            byte[] buffer = br.ReadBytes(FDS_HEADER_LENGTH);
-
-                            // Check the FDS header
-                            if (buffer[0] == FDS_HEADER_CHECK[0])
+                            if (headerBuffer[i] != FdsHeaderCheck[i])
                             {
-                                Array.Copy(buffer, headerBuffer, FDS_HEADER_LENGTH);
-
-                                bool headerValid = true;
-
-                                // Ensure the rest of the header is valid, except final byte (manufacturer code)
-                                for (int i = 1; i < FDS_HEADER_CHECK.Length && headerValid; i++)
-                                {
-                                    if (headerBuffer[i] != FDS_HEADER_CHECK[i])
-                                    {
-                                        headerValid = false;
-                                    }
-                                }
-
-                                if (headerValid)
-                                {
-                                    // The rom position is a header length 
-                                    // before the current stream position
-                                    romPosition = br.BaseStream.Position - 
-                                        FDS_HEADER_LENGTH;
-                                    vcNamePosition = romPosition - 16;
-                                    Array.Copy(headerBuffer, 0, fdsRomHeader, 0, 
-                                        FDS_HEADER_LENGTH);
-                                    Console.WriteLine("Famicom Disk System Rom " +
-                                        "Detected!");
-                                    return true;
-                                }
+                                headerValid = false;
                             }
+                        }
+
+                        if (headerValid)
+                        {
+                            // The rom position is a header length
+                            // before the current stream position
+                            this.romPosition = br.BaseStream.Position -
+                                FdsHeaderLength;
+                            this.vcNamePosition = this.romPosition - 16;
+                            Array.Copy(headerBuffer, 0, this.fdsRomHeader, 0, FdsHeaderLength);
+                            Console.WriteLine("Famicom Disk System Rom " +
+                                "Detected!");
+                            return true;
                         }
                     }
                 }
