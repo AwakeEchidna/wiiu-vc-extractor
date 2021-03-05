@@ -1,13 +1,20 @@
-﻿using System;
-using System.Collections.Specialized;
-using System.IO;
-
-namespace WiiuVcExtractor.Libraries
+﻿namespace WiiuVcExtractor.Libraries
 {
-    class RomNameDictionary
+    using System.Collections.Specialized;
+    using System.IO;
+
+    /// <summary>
+    /// Dictionary that maps WUP- strings to rom names.
+    /// </summary>
+    public class RomNameDictionary
     {
         private OrderedDictionary dictionary;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RomNameDictionary"/> class from a CSV file.
+        /// The CSV file should have no headers and two fields, the WUP ID and the rom name.
+        /// </summary>
+        /// <param name="dictionaryCsvPath">path to the CSV file to read.</param>
         public RomNameDictionary(string dictionaryCsvPath)
         {
             if (!File.Exists(dictionaryCsvPath))
@@ -16,32 +23,35 @@ namespace WiiuVcExtractor.Libraries
             }
 
             // The key of the dictionary is the WUP- string (WUP-FAME) and the value is the rom name
-            dictionary = new OrderedDictionary();
+            this.dictionary = new OrderedDictionary();
 
             // Read in the CSV file
-            using (var reader = new StreamReader(File.OpenRead(dictionaryCsvPath)))
+            using var reader = new StreamReader(File.OpenRead(dictionaryCsvPath));
+            while (!reader.EndOfStream)
             {
-                while (!reader.EndOfStream)
-                {
-                    var line = reader.ReadLine();
-                    var values = line.Split(',');
+                var line = reader.ReadLine();
+                var values = line.Split(',');
 
-                    if (!String.IsNullOrEmpty(values[0]) && !String.IsNullOrEmpty(values[1]))
-                    {
-                        dictionary.Add(values[0], values[1]);
-                    }
+                if (!string.IsNullOrEmpty(values[0]) && !string.IsNullOrEmpty(values[1]))
+                {
+                    this.dictionary.Add(values[0], values[1]);
                 }
             }
         }
 
-        public string getRomName(string wupString)
+        /// <summary>
+        /// Gets a rom name using a WUP ID.
+        /// </summary>
+        /// <param name="wupString">WUP ID to find.</param>
+        /// <returns>Aliased rom name or an empty string if the WUP ID cannot be found.</returns>
+        public string GetRomName(string wupString)
         {
-            if (dictionary.Contains(wupString))
+            if (this.dictionary.Contains(wupString))
             {
-                return (string)dictionary[wupString];
+                return (string)this.dictionary[wupString];
             }
 
-            return "";
+            return string.Empty;
         }
     }
 }

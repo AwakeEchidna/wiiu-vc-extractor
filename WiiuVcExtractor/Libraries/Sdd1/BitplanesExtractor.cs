@@ -1,109 +1,131 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace WiiuVcExtractor.Libraries.Sdd1
+﻿namespace WiiuVcExtractor.Libraries.Sdd1
 {
-    class BitplanesExtractor
+    using System.Collections.Generic;
+    using System.Linq;
+
+    /// <summary>
+    /// S-DD1 compressor bitplanes extractor.
+    /// </summary>
+    public class BitplanesExtractor
     {
-        private const byte HEADER_MASK = 0x0C;
+        private const byte HeaderMask = 0x0C;
+
+        private readonly List<byte>[] bitplaneBuffer;
+        private readonly byte[] bpBitInd;
+
         private byte bitplanesInfo;
-        private UInt16 inputLength;
+        private ushort inputLength;
         private byte[] inputBuffer;
         private byte inBitInd;
         private byte currBitplane;
-        private List<byte>[] bitplaneBuffer;
-        private byte[] bpBitInd;
-        
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BitplanesExtractor"/> class.
+        /// </summary>
+        /// <param name="bpBuffer">bitplane buffer.</param>
         public BitplanesExtractor(ref List<byte>[] bpBuffer)
         {
-            bpBitInd = new byte[8];
-            bitplaneBuffer = bpBuffer;
+            this.bpBitInd = new byte[8];
+            this.bitplaneBuffer = bpBuffer;
         }
 
+        /// <summary>
+        /// Prepare for compression.
+        /// </summary>
+        /// <param name="inBuffer">input data to compress.</param>
+        /// <param name="header">S-DD1 header.</param>
         public void PrepareComp(byte[] inBuffer, byte header)
         {
-            inputLength = (UInt16)inBuffer.Length;
-            inputBuffer = inBuffer;
-            bitplanesInfo = (byte)(header & HEADER_MASK);
+            this.inputLength = (ushort)inBuffer.Length;
+            this.inputBuffer = inBuffer;
+            this.bitplanesInfo = (byte)(header & HeaderMask);
         }
 
+        /// <summary>
+        /// Launch bitplanes extractor.
+        /// </summary>
         public void Launch()
         {
-            --inputLength;
-            switch (bitplanesInfo)
+            --this.inputLength;
+            switch (this.bitplanesInfo)
             {
                 case 0x00:
-                    currBitplane = 1;
+                    this.currBitplane = 1;
                     break;
                 case 0x04:
-                    currBitplane = 7;
+                    this.currBitplane = 7;
                     break;
                 case 0x08:
-                    currBitplane = 3;
+                    this.currBitplane = 3;
                     break;
                 case 0x0c:
-                    inBitInd = 7;
+                    this.inBitInd = 7;
                     for (byte i = 0; i < 8; i++)
                     {
-                        bpBitInd[i] = 0;
+                        this.bpBitInd[i] = 0;
                     }
+
                     break;
             }
 
-            UInt16 counter = 0;
+            ushort counter = 0;
 
             do
             {
-                switch (bitplanesInfo)
+                switch (this.bitplanesInfo)
                 {
                     case 0x00:
-                        currBitplane ^= 0x01;
-                        bitplaneBuffer[currBitplane].Add(inputBuffer[counter]);
+                        this.currBitplane ^= 0x01;
+                        this.bitplaneBuffer[this.currBitplane].Add(this.inputBuffer[counter]);
                         break;
                     case 0x04:
-                        currBitplane ^= 0x01;
+                        this.currBitplane ^= 0x01;
                         if ((counter & 0x000f) == 0)
                         {
-                            currBitplane = ((byte)((currBitplane + 2) & 0x07));
+                            this.currBitplane = (byte)((this.currBitplane + 2) & 0x07);
                         }
-                        bitplaneBuffer[currBitplane].Add(inputBuffer[counter]);
+
+                        this.bitplaneBuffer[this.currBitplane].Add(this.inputBuffer[counter]);
                         break;
                     case 0x08:
-                        currBitplane ^= 0x01;
+                        this.currBitplane ^= 0x01;
                         if ((counter & 0x000f) == 0)
                         {
-                            currBitplane ^= 0x02;
+                            this.currBitplane ^= 0x02;
                         }
-                        bitplaneBuffer[currBitplane].Add(inputBuffer[counter]);
+
+                        this.bitplaneBuffer[this.currBitplane].Add(this.inputBuffer[counter]);
                         break;
                     case 0x0c:
-                        for (byte i = 0; i < 8; i++) PutBit(i, counter);
+                        for (byte i = 0; i < 8; i++)
+                        {
+                            this.PutBit(i, counter);
+                        }
+
                         break;
                 }
-            } while (counter++ < inputLength);
+            }
+            while (counter++ < this.inputLength);
         }
 
-        private void PutBit(byte bitplane, UInt16 counter)
+        private void PutBit(byte bitplane, ushort counter)
         {
-            List<byte> currBPBuf = bitplaneBuffer[bitplane];
-            byte currBitInd = bpBitInd[bitplane];
+            List<byte> currBPBuf = this.bitplaneBuffer[bitplane];
+            byte currBitInd = this.bpBitInd[bitplane];
 
             if (currBitInd == 0)
             {
                 currBPBuf.Add(0);
             }
 
-            currBPBuf[currBPBuf.Count() - 1] |= (byte)((((inputBuffer[counter]) & (0x80 >> inBitInd)) << inBitInd) >> currBitInd);
+            currBPBuf[currBPBuf.Count() - 1] |= (byte)(((this.inputBuffer[counter] & (0x80 >> this.inBitInd)) << this.inBitInd) >> currBitInd);
 
             currBitInd++;
             currBitInd &= 0x07;
 
-            bpBitInd[bitplane] = currBitInd;
-            inBitInd--;
-            inBitInd &= 0x07;
+            this.bpBitInd[bitplane] = currBitInd;
+            this.inBitInd--;
+            this.inBitInd &= 0x07;
         }
     }
 }

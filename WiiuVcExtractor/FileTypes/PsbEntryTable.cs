@@ -1,83 +1,111 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO;
-using WiiuVcExtractor.Libraries;
-
-namespace WiiuVcExtractor.FileTypes
+﻿namespace WiiuVcExtractor.FileTypes
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Text;
+    using WiiuVcExtractor.Libraries;
+
+    /// <summary>
+    /// PSB file entry table.
+    /// </summary>
     public class PsbEntryTable
     {
-        List<UInt32> names;
-        List<UInt32> offsets;
-        List<PsbFileInfoEntry> fileInfoEntries;
-        float version;
-        string id;
+        private readonly List<uint> names;
+        private readonly List<uint> offsets;
+        private readonly List<PsbFileInfoEntry> fileInfoEntries;
+        private readonly float version;
+        private readonly string id;
 
-        public List<PsbFileInfoEntry> FileInfoEntries { get { return fileInfoEntries; } }
-
-        public PsbEntryTable(byte[] psbData, long entriesOffset, List<String> nameStrings, List<String> strings)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PsbEntryTable"/> class.
+        /// </summary>
+        /// <param name="psbData">PSB file content.</param>
+        /// <param name="entriesOffset">offset to the beginning of the file info entries in bytes.</param>
+        /// <param name="nameStrings">filename string list.</param>
+        /// <param name="strings">PSB string string list.</param>
+        public PsbEntryTable(byte[] psbData, long entriesOffset, List<string> nameStrings, List<string> strings)
         {
             long entryDataOffset = 0;
 
             // Initialize the name table from the passed data
-            using (MemoryStream ms = new MemoryStream(psbData))
+            using MemoryStream ms = new MemoryStream(psbData);
+            ms.Seek(entriesOffset, SeekOrigin.Begin);
+
+            byte type = (byte)ms.ReadByte();
+            if (type != 0x21)
             {
-                ms.Seek(entriesOffset, SeekOrigin.Begin);
+                throw new InvalidOperationException("The type of the entries data is incorrect.");
+            }
 
-                byte type = (byte)ms.ReadByte();
-                if (type != 0x21)
+            this.names = this.ReadEntryTableValues(ms);
+            this.offsets = this.ReadEntryTableValues(ms);
+
+            entryDataOffset = ms.Position;
+
+            if (this.names.Count != this.offsets.Count)
+            {
+                throw new InvalidOperationException("The lengths of the entry names list and the entry offsets list differ.");
+            }
+
+            for (int i = 0; i < this.names.Count; i++)
+            {
+                string nameString = nameStrings[(int)this.names[i]];
+                long offset = entryDataOffset + this.offsets[i];
+
+                ms.Seek(offset, SeekOrigin.Begin);
+
+                switch (nameString)
                 {
-                    throw new InvalidOperationException("The type of the entries data is incorrect.");
-                }
+                    case "id":
+                        this.id = this.ReadId(ms, strings);
+                        break;
 
-                names = ReadEntryTableValues(ms);
-                offsets = ReadEntryTableValues(ms);
+                    case "version":
+                        this.version = this.ReadVersion(ms);
+                        break;
 
-                entryDataOffset = ms.Position;
-
-                if (names.Count != offsets.Count)
-                {
-                    throw new InvalidOperationException("The lengths of the entry names list and the entry offsets list differ.");
-                }
-
-                for (int i = 0; i < names.Count; i++)
-                {
-                    string nameString = nameStrings[(int)names[i]];
-                    long offset = entryDataOffset + offsets[i];
-
-                    ms.Seek(offset, SeekOrigin.Begin);
-
-                    switch(nameString)
-                    {
-                        case "id":
-                            id = ReadId(ms, strings);
-                            break;
-
-                        case "version":
-                            version = ReadVersion(ms);
-                            break;
-
-                        case "file_info":
-                            fileInfoEntries = ReadFileInfo(ms, nameStrings);
-                            break;
-                    }
+                    case "file_info":
+                        this.fileInfoEntries = this.ReadFileInfo(ms, nameStrings);
+                        break;
                 }
             }
         }
 
-        private List<UInt32> ReadEntryTableValues(MemoryStream ms)
+        /// <summary>
+        /// Gets file info entries for the PSB file.
+        /// </summary>
+        public List<PsbFileInfoEntry> FileInfoEntries
         {
-            List<UInt32> valueList = new List<uint>();
+            get { return this.fileInfoEntries; }
+        }
+
+        /// <summary>
+        /// Gets PSB file version.
+        /// </summary>
+        public float Version
+        {
+            get { return this.version; }
+        }
+
+        /// <summary>
+        /// Gets PSB file ID.
+        /// </summary>
+        public string Id
+        {
+            get { return this.id; }
+        }
+
+        private List<uint> ReadEntryTableValues(MemoryStream ms)
+        {
+            List<uint> valueList = new List<uint>();
 
             using (BinaryReader br = new BinaryReader(ms, new ASCIIEncoding(), true))
             {
                 // get the offset information
                 byte type = br.ReadByte();
 
-                // Get the size of each object in bytes            
+                // Get the size of each object in bytes
                 int countByteSize = type - 12;
                 uint count = 0;
 
@@ -97,7 +125,7 @@ namespace WiiuVcExtractor.FileTypes
                 byte entrySizeType = br.ReadByte();
                 int entryByteSize = entrySizeType - 12;
 
-                UInt32 value = 0;
+                uint value = 0;
 
                 // Read in the values
                 for (int i = 0; i < count; i++)
@@ -178,8 +206,8 @@ namespace WiiuVcExtractor.FileTypes
 
         private List<PsbFileInfoEntry> ReadFileInfo(MemoryStream ms, List<string> nameStrings)
         {
-            List<UInt32> fileNameIndexes = new List<UInt32>();
-            List<UInt32> fileOffsets = new List<UInt32>();
+            List<uint> fileNameIndexes = new List<uint>();
+            List<uint> fileOffsets = new List<uint>();
             List<PsbFileInfoEntry> fileInfos = new List<PsbFileInfoEntry>();
             long entryDataOffset = 0;
 
@@ -191,8 +219,8 @@ namespace WiiuVcExtractor.FileTypes
                     throw new InvalidOperationException("The type of the id in the PSB file is not for a FileInfo section.");
                 }
 
-                fileNameIndexes = ReadEntryTableValues(ms);
-                fileOffsets = ReadEntryTableValues(ms);
+                fileNameIndexes = this.ReadEntryTableValues(ms);
+                fileOffsets = this.ReadEntryTableValues(ms);
 
                 entryDataOffset = ms.Position;
 
@@ -216,8 +244,8 @@ namespace WiiuVcExtractor.FileTypes
                         throw new InvalidOperationException("The type of the id in the FileInfo section is not for an object array.");
                     }
 
-                    List<UInt32> fiOffsets = new List<uint>();
-                    fiOffsets = ReadEntryTableValues(ms);
+                    List<uint> fiOffsets = new List<uint>();
+                    fiOffsets = this.ReadEntryTableValues(ms);
 
                     long baseOffset = ms.Position;
 
@@ -231,10 +259,10 @@ namespace WiiuVcExtractor.FileTypes
                     uint fileLength = 0;
 
                     ms.Seek(baseOffset + fiOffsets[0], SeekOrigin.Begin);
-                    fileOffset = ReadFileInfoMetadata(ms);
+                    fileOffset = this.ReadFileInfoMetadata(ms);
 
                     ms.Seek(baseOffset + fiOffsets[1], SeekOrigin.Begin);
-                    fileLength = ReadFileInfoMetadata(ms);
+                    fileLength = this.ReadFileInfoMetadata(ms);
 
                     PsbFileInfoEntry fi = new PsbFileInfoEntry(fileNameIndexes[i], fileLength, fileOffset);
                     fileInfos.Add(fi);

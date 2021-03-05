@@ -1,27 +1,23 @@
-# wiiu-vc-extractor
+# Wii U Virtual Console Extractor
 Extracts Wii U Virtual Console roms from dumps created via [DDD](https://github.com/dimok789/ddd/releases) or from the SNES Mini.
 
 This currently only supports extracting GBA, DS, NES, FDS, PCE, and SNES roms. Note that most VC titles are not clean roms but have been modified from their original state.
 
 ## Installation
 ### Windows
-1. Ensure that you have installed the .Net Framework version 4.5.2 or newer (https://docs.microsoft.com/en-us/dotnet/framework/install/)
-2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases/latest
-3. Extract it to your local computer
+1. Download the [latest Windows release zip file](https://github.com/wheatevo/wiiu-vc-extractor/releases/latest/download/wiiu-vc-extractor-win-x64.zip)
+2. Extract it to your local computer
 
 ### Linux
-1. Ensure that you have installed Mono (http://www.mono-project.com/docs/getting-started/install/)
-2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases/latest
-3. Extract it to your local computer
+1. Download the [latest Linux release zip file](https://github.com/wheatevo/wiiu-vc-extractor/releases/latest/download/wiiu-vc-extractor-linux-x64.zip)
+2. Extract it to your local computer
 
 ### Mac
-1. Ensure that you have installed Mono (http://www.mono-project.com/docs/getting-started/install/)
-2. Download the latest release zip file from https://github.com/wheatevo/wiiu-vc-extractor/releases/latest
-3. Extract it to your local computer
-
+1. Download the [latest OSX release zip file](https://github.com/wheatevo/wiiu-vc-extractor/releases/latest/download/wiiu-vc-extractor-osx-x64.zip)
+2. Extract it to your local computer
 
 ## Basic Usage
-`WiiuVcExtractor <dump_file>`
+`wiiuvcextractor <dump_file>`
 
 ```
 =====================================
@@ -45,13 +41,10 @@ wiiuvcextractor pce.pkg
 wiiuvcextractor -v WUP-JBBE.rpx
 ```
 
-### Running under Mono
-`mono WiiuVcExtractor <dump_file>`
-
 ## Example Runs
 ### NES Extraction
 ```
-WiiuVcExtractor.exe WUP-FCSE.rpx
+wiiuvcextractor.exe WUP-FCSE.rpx
 ============================================================================
 Starting extraction of rom from WUP-FCSE.rpx...
 ============================================================================
@@ -80,7 +73,7 @@ WUP-FCSE.rpx has been extracted to MEGA MAN 6.nes successfully.
 
 ### FDS Extraction
 ```
-WiiuVcExtractor.exe WUP-FA9E.rpx
+wiiuvcextractor.exe WUP-FA9E.rpx
 ============================================================================
 Starting extraction of rom from WUP-FA9E.rpx...
 ============================================================================
@@ -166,7 +159,7 @@ CLV-P-SAAHE.sfrom has been extracted to Super Metroid.sfc successfully.
 
 ### GBA Extraction
 ```
-WiiuVcExtractor.exe alldata.psb.m
+wiiuvcextractor.exe alldata.psb.m
 ============================================================================
 Starting extraction of rom from alldata.psb.m...
 ============================================================================
@@ -192,7 +185,7 @@ alldata.psb.m has been extracted to Advance Wars.gba successfully.
 
 ### PCE Extraction
 ```
-WiiuVcExtractor.exe pce.pkg
+wiiuvcextractor.exe pce.pkg
 ============================================================================
 Starting extraction of rom from pce.pkg...
 ============================================================================

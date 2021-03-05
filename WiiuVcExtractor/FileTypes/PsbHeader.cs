@@ -1,87 +1,146 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO;
-using WiiuVcExtractor.Libraries;
-
-namespace WiiuVcExtractor.FileTypes
+﻿namespace WiiuVcExtractor.FileTypes
 {
+    using System;
+    using System.IO;
+    using System.Text;
+    using WiiuVcExtractor.Libraries;
+
+    /// <summary>
+    /// PSB file header.
+    /// </summary>
     public class PsbHeader
     {
-        public const int PSB_HEADER_LENGTH = 40;
+        /// <summary>
+        /// Length of a PSB file header in bytes.
+        /// </summary>
+        public const int PsbHeaderLength = 40;
 
-        private static readonly byte[] PSB_SIGNATURE = { 0x50, 0x53, 0x42, 0x00 };
-        private const int PSB_SIGNATURE_LENGTH = 4;
+        private const int PsbSignatureLength = 4;
 
-        private const int HEADER_TITLE_OFFSET = 0;
-        private const int HEADER_TITLE_LENGTH = 21;
-        private const int HEADER_ROM_SIZE_OFFSET = 23;
-        private const int HEADER_SRAM_SIZE_OFFSET = 24;
-        private const int HEADER_FIXED_VALUE_OFFSET = 26;
-        private const int HEADER_CHECKSUM_COMPLEMENT_OFFSET = 28;
-        private const int HEADER_CHECKSUM_OFFSET = 30;
+        /*
+        // Header offsets and lengths (currently unused)
+        // private const int HeaderTitleOffset = 0;
+        // private const int HeaderTitleLength = 21;
+        // private const int HeaderRomSizeOffset = 23;
+        // private const int HeaderSramSizeOffset = 24;
+        // private const int HeaderFixedValueOffset = 26;
+        // private const int HeaderChecksumComplementOffset = 28;
+        // private const int HeaderChecksumOffset = 30;
+        // private const int HeaderTypeOffset = 4;
+        // private const int HeaderUnknownOffset = 8;
+        // private const int HeaderNamesOffset = 12;
+        // private const int HeaderStringsOffset = 16;
+        // private const int HeaderStringsDataOffset = 20;
+        // private const int HeaderChunkOffsetsOffset = 24;
+        // private const int HeaderChunkLengthsOffset = 28;
+        // private const int HeaderChunkDataOffset = 32;
+        // private const int HeaderEntriesOffset = 36;
+        */
 
-        private const int HEADER_TYPE_OFFSET = 4;
-        private const int HEADER_UNKNOWN_OFFSET = 8;
-        private const int HEADER_NAMES_OFFSET = 12;
-        private const int HEADER_STRINGS_OFFSET = 16;
-        private const int HEADER_STRINGS_DATA_OFFSET = 20;
-        private const int HEADER_CHUNK_OFFSETS_OFFSET = 24;
-        private const int HEADER_CHUNK_LENGTHS_OFFSET = 28;
-        private const int HEADER_CHUNK_DATA_OFFSET = 32;
-        private const int HEADER_ENTRIES_OFFSET = 36;
+        private static readonly byte[] PsbSignature = { 0x50, 0x53, 0x42, 0x00 };
 
-        private byte[] signature;
-        private UInt32 type;
-        private UInt32 unknown;
-        private UInt32 namesOffset;
-        private UInt32 stringsOffset;
-        private UInt32 stringsDataOffset;
-        private UInt32 chunkOffsetsOffset;
-        private UInt32 chunkLengthsOffset;
-        private UInt32 chunkDataOffset;
-        private UInt32 entriesOffset;
+        private readonly byte[] signature;
+        private readonly uint type;
+        private readonly uint unknown;
+        private readonly uint namesOffset;
+        private readonly uint stringsOffset;
+        private readonly uint stringsDataOffset;
+        private readonly uint chunkOffsetsOffset;
+        private readonly uint chunkLengthsOffset;
+        private readonly uint chunkDataOffset;
+        private readonly uint entriesOffset;
 
-        public UInt32 NamesOffset { get { return namesOffset; } }
-        public UInt32 StringsOffset { get { return stringsOffset; } }
-        public UInt32 StringsDataOffset { get { return stringsDataOffset; } }
-        public UInt32 ChunkOffsetsOffset { get { return chunkOffsetsOffset; } }
-        public UInt32 ChunkLengthsOffset { get { return chunkLengthsOffset; } }
-        public UInt32 ChunkDataOffset { get { return chunkDataOffset; } }
-        public UInt32 EntriesOffset { get { return entriesOffset; } }
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PsbHeader"/> class.
+        /// </summary>
+        /// <param name="psbPath">path to the PSB file.</param>
         public PsbHeader(string psbPath)
         {
-            signature = new byte[PSB_SIGNATURE_LENGTH];
+            this.signature = new byte[PsbSignatureLength];
 
-            using (FileStream fs = new FileStream(psbPath, FileMode.Open, FileAccess.Read))
-            {
-                using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
-                {
-                    // Read in the header
-                    signature = br.ReadBytes(PSB_SIGNATURE_LENGTH);
-                    type = EndianUtility.ReadUInt32LE(br);
-                    unknown = EndianUtility.ReadUInt32LE(br);
-                    namesOffset = EndianUtility.ReadUInt32LE(br);
-                    stringsOffset = EndianUtility.ReadUInt32LE(br);
-                    stringsDataOffset = EndianUtility.ReadUInt32LE(br);
-                    chunkOffsetsOffset = EndianUtility.ReadUInt32LE(br);
-                    chunkLengthsOffset = EndianUtility.ReadUInt32LE(br);
-                    chunkDataOffset = EndianUtility.ReadUInt32LE(br);
-                    entriesOffset = EndianUtility.ReadUInt32LE(br);
-                }
-            }
+            using FileStream fs = new FileStream(psbPath, FileMode.Open, FileAccess.Read);
+            using BinaryReader br = new BinaryReader(fs, new ASCIIEncoding());
+
+            // Read in the header
+            this.signature = br.ReadBytes(PsbSignatureLength);
+            this.type = EndianUtility.ReadUInt32LE(br);
+            this.unknown = EndianUtility.ReadUInt32LE(br);
+            this.namesOffset = EndianUtility.ReadUInt32LE(br);
+            this.stringsOffset = EndianUtility.ReadUInt32LE(br);
+            this.stringsDataOffset = EndianUtility.ReadUInt32LE(br);
+            this.chunkOffsetsOffset = EndianUtility.ReadUInt32LE(br);
+            this.chunkLengthsOffset = EndianUtility.ReadUInt32LE(br);
+            this.chunkDataOffset = EndianUtility.ReadUInt32LE(br);
+            this.entriesOffset = EndianUtility.ReadUInt32LE(br);
         }
 
+        /// <summary>
+        /// Gets PSB file names offset in bytes.
+        /// </summary>
+        public uint NamesOffset
+        {
+            get { return this.namesOffset; }
+        }
+
+        /// <summary>
+        /// Gets PSB file strings offset in bytes.
+        /// </summary>
+        public uint StringsOffset
+        {
+            get { return this.stringsOffset; }
+        }
+
+        /// <summary>
+        /// Gets PSB file strings data offset in bytes.
+        /// </summary>
+        public uint StringsDataOffset
+        {
+            get { return this.stringsDataOffset; }
+        }
+
+        /// <summary>
+        /// Gets PSB file chunk offsets offset in bytes.
+        /// </summary>
+        public uint ChunkOffsetsOffset
+        {
+            get { return this.chunkOffsetsOffset; }
+        }
+
+        /// <summary>
+        /// Gets PSB file chunk lengths offset in bytes.
+        /// </summary>
+        public uint ChunkLengthsOffset
+        {
+            get { return this.chunkLengthsOffset; }
+        }
+
+        /// <summary>
+        /// Gets PSB file chunk data offset in bytes.
+        /// </summary>
+        public uint ChunkDataOffset
+        {
+            get { return this.chunkDataOffset; }
+        }
+
+        /// <summary>
+        /// Gets PSB file entries offset in bytes.
+        /// </summary>
+        public uint EntriesOffset
+        {
+            get { return this.entriesOffset; }
+        }
+
+        /// <summary>
+        /// whether the PSB header is valid.
+        /// </summary>
+        /// <returns>true if valid, false otherwise.</returns>
         public bool IsValid()
         {
             // Check that the signature is correct
-            if (signature[0] != PSB_SIGNATURE[0] ||
-                signature[1] != PSB_SIGNATURE[1] ||
-                signature[2] != PSB_SIGNATURE[2] ||
-                signature[3] != PSB_SIGNATURE[3])
+            if (this.signature[0] != PsbSignature[0] ||
+                this.signature[1] != PsbSignature[1] ||
+                this.signature[2] != PsbSignature[2] ||
+                this.signature[3] != PsbSignature[3])
             {
                 return false;
             }
@@ -89,19 +148,23 @@ namespace WiiuVcExtractor.FileTypes
             return true;
         }
 
+        /// <summary>
+        /// Provides a string representation of the PSB header.
+        /// </summary>
+        /// <returns>string representation of the PSB header.</returns>
         public override string ToString()
         {
             return "PsbHeader:\n" +
-                   "signature: " + BitConverter.ToString(signature) + "\n" +
-                   "type: " + type.ToString() + "\n" +
-                   "unknown: " + unknown.ToString() + "\n" +
-                   "namesOffset: " + namesOffset.ToString() + "\n" +
-                   "stringsOffset: " + stringsOffset.ToString() + "\n" +
-                   "stringsDataOffset: " + stringsDataOffset.ToString() + "\n" +
-                   "chunkOffsetsOffset: " + chunkOffsetsOffset.ToString() + "\n" +
-                   "chunkLengthsOffset: " + chunkLengthsOffset.ToString() + "\n" +
-                   "chunkDataOffset: " + chunkDataOffset.ToString() + "\n" +
-                   "entriesOffset: " + entriesOffset.ToString() + "\n";
+                   "signature: " + BitConverter.ToString(this.signature) + "\n" +
+                   "type: " + this.type.ToString() + "\n" +
+                   "unknown: " + this.unknown.ToString() + "\n" +
+                   "namesOffset: " + this.namesOffset.ToString() + "\n" +
+                   "stringsOffset: " + this.stringsOffset.ToString() + "\n" +
+                   "stringsDataOffset: " + this.stringsDataOffset.ToString() + "\n" +
+                   "chunkOffsetsOffset: " + this.chunkOffsetsOffset.ToString() + "\n" +
+                   "chunkLengthsOffset: " + this.chunkLengthsOffset.ToString() + "\n" +
+                   "chunkDataOffset: " + this.chunkDataOffset.ToString() + "\n" +
+                   "entriesOffset: " + this.entriesOffset.ToString() + "\n";
         }
     }
 }

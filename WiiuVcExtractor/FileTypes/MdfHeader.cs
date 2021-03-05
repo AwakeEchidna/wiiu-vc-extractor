@@ -1,47 +1,62 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO;
-using WiiuVcExtractor.Libraries;
-
-namespace WiiuVcExtractor.FileTypes
+﻿namespace WiiuVcExtractor.FileTypes
 {
-    class MdfHeader
+    using System;
+    using System.IO;
+    using System.Text;
+    using WiiuVcExtractor.Libraries;
+
+    /// <summary>
+    /// MDF header class.
+    /// </summary>
+    public class MdfHeader
     {
-        public const int MDF_HEADER_LENGTH = 8;
+        /// <summary>
+        /// Length of the MDF header in bytes.
+        /// </summary>
+        public const int MDFHeaderLength = 8;
 
-        private static readonly byte[] MDF_SIGNATURE = { 0x6D, 0x64, 0x66, 0x00 };
-        private const int MDF_SIGNATURE_LENGTH = 4;
+        private const int MDFSignatureLength = 4;
 
-        private byte[] signature;
-        private UInt32 length;
+        private static readonly byte[] MDFSignature = { 0x6D, 0x64, 0x66, 0x00 };
 
-        public UInt32 Length { get { return length; } }
+        private readonly byte[] signature;
+        private readonly uint length;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MdfHeader"/> class.
+        /// </summary>
+        /// <param name="psbPath">path to the PSB file to read.</param>
         public MdfHeader(string psbPath)
         {
-            signature = new byte[MDF_SIGNATURE_LENGTH];
+            this.signature = new byte[MDFSignatureLength];
 
-            using (FileStream fs = new FileStream(psbPath, FileMode.Open, FileAccess.Read))
-            {
-                using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
-                {
-                    // Read in the header
-                    signature = br.ReadBytes(MDF_SIGNATURE_LENGTH);
-                    length = EndianUtility.ReadUInt32LE(br);
-                }
-            }
+            using FileStream fs = new FileStream(psbPath, FileMode.Open, FileAccess.Read);
+            using BinaryReader br = new BinaryReader(fs, new ASCIIEncoding());
+
+            // Read in the header
+            this.signature = br.ReadBytes(MDFSignatureLength);
+            this.length = EndianUtility.ReadUInt32LE(br);
         }
 
+        /// <summary>
+        /// Gets the length of the associated MDF data.
+        /// </summary>
+        public uint Length
+        {
+            get { return this.length; }
+        }
+
+        /// <summary>
+        /// Whether the current header is valid.
+        /// </summary>
+        /// <returns>true if valid, false otherwise.</returns>
         public bool IsValid()
         {
             // Check that the signature is correct
-            if (signature[0] != MDF_SIGNATURE[0] ||
-                signature[1] != MDF_SIGNATURE[1] ||
-                signature[2] != MDF_SIGNATURE[2] ||
-                signature[3] != MDF_SIGNATURE[3])
+            if (this.signature[0] != MDFSignature[0] ||
+                this.signature[1] != MDFSignature[1] ||
+                this.signature[2] != MDFSignature[2] ||
+                this.signature[3] != MDFSignature[3])
             {
                 return false;
             }
@@ -49,11 +64,15 @@ namespace WiiuVcExtractor.FileTypes
             return true;
         }
 
+        /// <summary>
+        /// Generates string representation of the header.
+        /// </summary>
+        /// <returns>string representation of the header.</returns>
         public override string ToString()
         {
             return "MdfHeader:\n" +
-                   "signature: " + BitConverter.ToString(signature) + "\n" +
-                   "length: " + length.ToString() + "\n";
+                   "signature: " + BitConverter.ToString(this.signature) + "\n" +
+                   "length: " + this.length.ToString() + "\n";
         }
     }
 }

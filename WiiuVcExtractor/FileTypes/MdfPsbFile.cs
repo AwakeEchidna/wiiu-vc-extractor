@@ -1,90 +1,134 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO;
-using System.Security.Cryptography;
-using Meisui.Random;
-using Ionic.Zlib;
-
-namespace WiiuVcExtractor.FileTypes
+﻿namespace WiiuVcExtractor.FileTypes
 {
-    public class MdfPsbFile
+    using System;
+    using System.IO;
+    using System.Security.Cryptography;
+    using System.Text;
+    using Ionic.Zlib;
+    using Meisui.Random;
+
+    /// <summary>
+    /// MDF PSB file.
+    /// </summary>
+    public class MdfPsbFile : IDisposable
     {
-        private const string FIXED_SEED = "MX8wgGEJ2+M47";
-        private const byte XOR_KEY_LENGTH = 0x50;
+        private const string FixedSeed = "MX8wgGEJ2+M47";
+        private const byte XorKeyLength = 0x50;
 
-        MdfHeader mdfHeader;
-        byte[] mdfData;
-        byte[] xorKey;
+        private readonly MdfHeader mdfHeader;
+        private readonly byte[] xorKey;
+        private readonly bool verbose;
+        private readonly string path;
+        private readonly string decompressedPath;
+        private byte[] mdfData;
+        private bool disposedValue;
 
-        bool verbose;
-        string path;
-        string decompressedPath;
-
-        public string DecompressedPath { get { return decompressedPath; } }
-
-        public static bool IsMdfPsb(string psbFilePath)
-        {
-            MdfHeader header = new MdfHeader(psbFilePath);
-            return header.IsValid();
-        }
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MdfPsbFile"/> class.
+        /// </summary>
+        /// <param name="psbFilePath">path to the PSB file.</param>
+        /// <param name="verbose">whether to provide verbose output.</param>
         public MdfPsbFile(string psbFilePath, bool verbose = false)
         {
             this.verbose = verbose;
             Console.WriteLine("Decompressing PSB file...");
 
-            path = psbFilePath;
-            decompressedPath = path + ".extract";
+            this.path = psbFilePath;
+            this.decompressedPath = this.path + ".extract";
 
             // Remove the temp file if it exists
-            if (File.Exists(decompressedPath))
+            if (File.Exists(this.decompressedPath))
             {
                 if (verbose)
                 {
-                    Console.WriteLine("File exists at {0}, deleting...", decompressedPath);
+                    Console.WriteLine("File exists at {0}, deleting...", this.decompressedPath);
                 }
-                File.Delete(decompressedPath);
+
+                File.Delete(this.decompressedPath);
             }
 
-            mdfHeader = new MdfHeader(path);
+            this.mdfHeader = new MdfHeader(this.path);
 
             if (verbose)
             {
-                Console.WriteLine("MDF Header content:\n{0}", mdfHeader.ToString());
+                Console.WriteLine("MDF Header content:\n{0}", this.mdfHeader.ToString());
             }
 
             if (verbose)
             {
                 Console.WriteLine("Generating XOR key for MDF decryption...");
             }
-            xorKey = GenerateXorKey(path);
 
+            this.xorKey = this.GenerateXorKey(this.path);
 
             if (verbose)
             {
-                Console.WriteLine("Reading bytes from {0}...", path);
+                Console.WriteLine("Reading bytes from {0}...", this.path);
             }
-            mdfData = File.ReadAllBytes(path);
 
-            DecryptMdfData();
+            this.mdfData = File.ReadAllBytes(this.path);
 
-            DecompressMdfData();
+            this.DecryptMdfData();
+
+            this.DecompressMdfData();
         }
 
-        ~MdfPsbFile()
+        /// <summary>
+        /// Gets path to the decompressed MDF file.
+        /// </summary>
+        public string DecompressedPath
         {
-            if (File.Exists(decompressedPath))
+            get { return this.decompressedPath; }
+        }
+
+        /// <summary>
+        /// Whether a given path is a valid MDF PSB file.
+        /// </summary>
+        /// <param name="psbFilePath">path to the PSB file to test.</param>
+        /// <returns>true if valid, false otherwise.</returns>
+        public static bool IsMdfPsb(string psbFilePath)
+        {
+            MdfHeader header = new MdfHeader(psbFilePath);
+            return header.IsValid();
+        }
+
+        /// <summary>
+        /// Dispose PsbFile.
+        /// </summary>
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            this.Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Dispose MdfPsbFile.
+        /// </summary>
+        /// <param name="disposing">whether disposing the file.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!this.disposedValue)
             {
-                File.Delete(decompressedPath);
+                if (disposing)
+                {
+                    // dispose managed state (managed objects)
+                }
+
+                if (File.Exists(this.decompressedPath))
+                {
+                    Console.WriteLine("Deleting file {0}", this.decompressedPath);
+                    File.Delete(this.decompressedPath);
+                }
+
+                // set large fields to null (if any)
+                this.disposedValue = true;
             }
         }
 
         private byte[] GenerateXorKey(string fileName)
         {
-            byte[] fixedSeed = Encoding.ASCII.GetBytes(FIXED_SEED);
+            byte[] fixedSeed = Encoding.ASCII.GetBytes(FixedSeed);
             byte[] fileNameAsBytes = Encoding.ASCII.GetBytes(Path.GetFileName(fileName));
             int hashSeedLength = fixedSeed.Length + fileNameAsBytes.Length;
             byte[] hashSeed = new byte[hashSeedLength];
@@ -99,7 +143,7 @@ namespace WiiuVcExtractor.FileTypes
                 hashAsBytes = md5Hash.ComputeHash(hashSeed);
             }
 
-            UInt32[] hashAsUint32 = new UInt32[4];
+            uint[] hashAsUint32 = new uint[4];
 
             for (int i = 0; i < 4; i++)
             {
@@ -108,11 +152,11 @@ namespace WiiuVcExtractor.FileTypes
 
             MersenneTwister mt19937 = new MersenneTwister(hashAsUint32);
 
-            byte[] keyBuffer = new byte[XOR_KEY_LENGTH];
+            byte[] keyBuffer = new byte[XorKeyLength];
 
-            for (int i = 0; i < XOR_KEY_LENGTH / 4; i++)
+            for (int i = 0; i < XorKeyLength / 4; i++)
             {
-                UInt32 buffer = mt19937.genrand_Int32();
+                uint buffer = mt19937.Genrand_Int32();
 
                 Array.Copy(BitConverter.GetBytes(buffer), 0, keyBuffer, i * 4, 4);
             }
@@ -122,22 +166,23 @@ namespace WiiuVcExtractor.FileTypes
 
         private void DecryptMdfData()
         {
-            if (verbose)
+            if (this.verbose)
             {
                 Console.WriteLine("Decrypting MDF data...");
             }
+
             // Copy the PSB data into decryptedData
-            byte[] decryptedData = new byte[mdfData.Length];
-            Array.Copy(mdfData, decryptedData, mdfData.Length);
+            byte[] decryptedData = new byte[this.mdfData.Length];
+            Array.Copy(this.mdfData, decryptedData, this.mdfData.Length);
 
             // Iterate through the data and XOR the key to decrypt it
-            for (int i = 0; i < decryptedData.Length - MdfHeader.MDF_HEADER_LENGTH; i++)
+            for (int i = 0; i < decryptedData.Length - MdfHeader.MDFHeaderLength; i++)
             {
-                decryptedData[i + MdfHeader.MDF_HEADER_LENGTH] ^= xorKey[i % XOR_KEY_LENGTH];
+                decryptedData[i + MdfHeader.MDFHeaderLength] ^= this.xorKey[i % XorKeyLength];
             }
 
-            mdfData = decryptedData;
-            if (verbose)
+            this.mdfData = decryptedData;
+            if (this.verbose)
             {
                 Console.WriteLine("Decryption complete");
             }
@@ -145,32 +190,29 @@ namespace WiiuVcExtractor.FileTypes
 
         private void DecompressMdfData()
         {
-            if (verbose)
+            if (this.verbose)
             {
                 Console.WriteLine("Decompressing MDF data...");
             }
-            byte[] compressedData = new byte[mdfData.Length - MdfHeader.MDF_HEADER_LENGTH];
+
+            byte[] compressedData = new byte[this.mdfData.Length - MdfHeader.MDFHeaderLength];
             byte[] decompressedData;
 
             // Copy the current mdf data to compressed data without the MDF header
-            Array.Copy(mdfData, MdfHeader.MDF_HEADER_LENGTH, compressedData, 0, mdfData.Length - MdfHeader.MDF_HEADER_LENGTH);
+            Array.Copy(this.mdfData, MdfHeader.MDFHeaderLength, compressedData, 0, this.mdfData.Length - MdfHeader.MDFHeaderLength);
 
             using (MemoryStream compressedStream = new MemoryStream(compressedData))
             {
-                using (ZlibStream deflateStream = new ZlibStream(compressedStream, CompressionMode.Decompress))
-                {
-                    using (MemoryStream decompressedStream = new MemoryStream())
-                    {
-                        deflateStream.CopyTo(decompressedStream);
-                        decompressedData = decompressedStream.ToArray();
-                    }
-                }
+                using ZlibStream deflateStream = new ZlibStream(compressedStream, CompressionMode.Decompress);
+                using MemoryStream decompressedStream = new MemoryStream();
+                deflateStream.CopyTo(decompressedStream);
+                decompressedData = decompressedStream.ToArray();
             }
 
             // Write all of the decompressed data to the decompressedPath
-            File.WriteAllBytes(decompressedPath, decompressedData);
+            File.WriteAllBytes(this.decompressedPath, decompressedData);
 
-            Console.WriteLine("Decompression to {0} completed", decompressedPath);
+            Console.WriteLine("Decompression to {0} completed", this.decompressedPath);
         }
     }
 }

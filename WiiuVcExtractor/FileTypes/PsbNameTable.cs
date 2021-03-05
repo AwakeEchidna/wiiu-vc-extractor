@@ -1,50 +1,79 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO;
-using WiiuVcExtractor.Libraries;
-
-namespace WiiuVcExtractor.FileTypes
+﻿namespace WiiuVcExtractor.FileTypes
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Text;
+    using WiiuVcExtractor.Libraries;
+
+    /// <summary>
+    /// PSB file name table.
+    /// </summary>
     public class PsbNameTable
     {
-        List<UInt32> offsets;
-        List<UInt32> jumps;
-        List<UInt32> starts;
+        private readonly List<uint> offsets;
+        private readonly List<uint> jumps;
+        private readonly List<uint> starts;
 
-        public List<UInt32> Offsets { get { return offsets; } }
-        public List<UInt32> Jumps { get { return jumps; } }
-        public List<UInt32> Starts { get { return starts; } }
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PsbNameTable"/> class.
+        /// </summary>
+        /// <param name="psbData">PSB data byte array.</param>
+        /// <param name="namesOffset">Beginning of the names table in the PSB data.</param>
         public PsbNameTable(byte[] psbData, long namesOffset)
         {
             // Initialize the name table from the passed data
-            using (MemoryStream ms = new MemoryStream(psbData))
-            {
-                ms.Seek(namesOffset, SeekOrigin.Begin);
+            using MemoryStream ms = new MemoryStream(psbData);
+            ms.Seek(namesOffset, SeekOrigin.Begin);
 
-                offsets = ReadNameTableValues(ms);
-                jumps = ReadNameTableValues(ms);
-                starts = ReadNameTableValues(ms);
-            }
+            this.offsets = this.ReadNameTableValues(ms);
+            this.jumps = this.ReadNameTableValues(ms);
+            this.starts = this.ReadNameTableValues(ms);
         }
 
+        /// <summary>
+        /// Gets PSB name table offsets (in bytes).
+        /// </summary>
+        public List<uint> Offsets
+        {
+            get { return this.offsets; }
+        }
+
+        /// <summary>
+        /// Gets PSB name table jumps.
+        /// </summary>
+        public List<uint> Jumps
+        {
+            get { return this.jumps; }
+        }
+
+        /// <summary>
+        /// Gets PSB name table starts.
+        /// </summary>
+        public List<uint> Starts
+        {
+            get { return this.starts; }
+        }
+
+        /// <summary>
+        /// Gets the name at a given index of the PSB name table.
+        /// </summary>
+        /// <param name="index">name index.</param>
+        /// <returns>retrieved name.</returns>
         public string GetName(int index)
         {
-            uint a = starts[index];
+            uint a = this.starts[index];
 
             // Follow one jump to skip the terminating NUL
-            uint b = jumps[(int)a];
+            uint b = this.jumps[(int)a];
 
-            string returnString = "";
+            string returnString = string.Empty;
 
             while (b != 0)
             {
-                uint c = jumps[(int)b];
+                uint c = this.jumps[(int)b];
 
-                uint d = offsets[(int)c];
+                uint d = this.offsets[(int)c];
 
                 uint e = b - d;
 
@@ -56,16 +85,16 @@ namespace WiiuVcExtractor.FileTypes
             return returnString;
         }
 
-        private List<UInt32> ReadNameTableValues(MemoryStream ms)
+        private List<uint> ReadNameTableValues(MemoryStream ms)
         {
-            List<UInt32> valueList = new List<uint>();
+            List<uint> valueList = new List<uint>();
 
             using (BinaryReader br = new BinaryReader(ms, new ASCIIEncoding(), true))
             {
                 // get the offset information
                 byte type = br.ReadByte();
 
-                // Get the size of each object in bytes            
+                // Get the size of each object in bytes
                 int countByteSize = type - 12;
                 uint count = 0;
 
@@ -85,7 +114,7 @@ namespace WiiuVcExtractor.FileTypes
                 byte entrySizeType = br.ReadByte();
                 int entryByteSize = entrySizeType - 12;
 
-                UInt32 value = 0;
+                uint value = 0;
 
                 // Read in the values
                 for (int i = 0; i < count; i++)

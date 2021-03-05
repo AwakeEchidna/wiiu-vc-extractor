@@ -1,44 +1,46 @@
-﻿using System;
-using System.Text;
-using System.IO;
-using System.Linq;
-using WiiuVcExtractor.FileTypes;
-using WiiuVcExtractor.Libraries;
-
-namespace WiiuVcExtractor.RomExtractors
+﻿namespace WiiuVcExtractor.RomExtractors
 {
+    using System;
+    using System.IO;
+    using System.Linq;
+    using System.Text;
+    using WiiuVcExtractor.Libraries;
+
+    /// <summary>
+    /// SNES VC extractor.
+    /// </summary>
     public class SnesVcExtractor : IRomExtractor
     {
-        private enum SnesHeaderType { NotDetermined, Unknown, HiROM, LoROM };
+        private const int VcHeaderSize = 0x30;
+        private const int SnesHeaderLength = 32;
+        private const int SnesLoRomHeaderOffset = 0x7FC0;
+        private const int SnesHiRomHeaderOffset = 0xFFC0;
 
-        private const int VC_HEADER_SIZE = 0x30;
+        private const int HeaderTitleOffset = 0;
+        private const int HeaderTitleLength = 21;
+        private const int HeaderRomSizeOffset = 23;
 
-        private static readonly byte[] SNES_WUP_HEADER_CHECK = { 0x57, 0x55, 0x50, 0x2D, 0x4A };
-        private const int SNES_HEADER_LENGTH = 32;
-        private const int SNES_LOROM_HEADER_OFFSET = 0x7FC0;
-        private const int SNES_HIROM_HEADER_OFFSET = 0xFFC0;
+        // private const int HeaderSramSizeOffset = 24;
+        // private const int HeaderFixedValueOffset = 26;
+        private const int HeaderChecksumComplementOffset = 28;
+        private const int HeaderChecksumOffset = 30;
 
-        private const int HEADER_TITLE_OFFSET = 0;
-        private const int HEADER_TITLE_LENGTH = 21;
-        private const int HEADER_ROM_SIZE_OFFSET = 23;
-        private const int HEADER_SRAM_SIZE_OFFSET = 24;
-        private const int HEADER_FIXED_VALUE_OFFSET = 26;
-        private const int HEADER_CHECKSUM_COMPLEMENT_OFFSET = 28;
-        private const int HEADER_CHECKSUM_OFFSET = 30;
+        private const int RomSizeBase = 0x400;
+        private const string SnesDictionaryCsvPath = "snesromnames.csv";
+        private const string SnesSizeCsvPath = "snesromsizes.csv";
 
-        private const int ROM_SIZE_BASE = 0x400;
-        private static readonly int[] VALID_ROM_SIZES = { 0x9, 0xA, 0xB, 0xC, 0xD };
+        private const byte AsciiSpace = 0x20;
+        private const byte AsciiZero = 0x30;
+        private const byte AsciiZ = 0x5A;
 
-        private const string SNES_DICTIONARY_CSV_PATH = "snesromnames.csv";
-        private const string SNES_SIZE_CSV_PATH = "snesromsizes.csv";
+        private static readonly byte[] SnesWupHeaderCheck = { 0x57, 0x55, 0x50, 0x2D, 0x4A };
+        private static readonly int[] ValidRomSizes = { 0x9, 0xA, 0xB, 0xC, 0xD };
 
-        private const byte ASCII_SPACE = 0x20;
-        private const byte ASCII_ZERO = 0x30;
-        private const byte ASCII_Z = 0x5A;
+        private readonly string decompressedRomPath;
+        private readonly RomNameDictionary snesDictionary;
+        private readonly RomSizeDictionary snesSizeDictionary;
+        private readonly bool verbose;
 
-        private string decompressedRomPath;
-        private RomNameDictionary snesDictionary;
-        private RomSizeDictionary snesSizeDictionary;
         private SnesHeaderType headerType;
 
         private string extractedRomPath;
@@ -56,29 +58,43 @@ namespace WiiuVcExtractor.RomExtractors
         private byte[] snesHiRomHeader;
         private byte[] snesRomData;
 
-        private bool verbose;
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SnesVcExtractor"/> class.
+        /// </summary>
+        /// <param name="decompressedRomPath">path to the decompressed rom.</param>
+        /// <param name="verbose">whether to provide verbose output.</param>
         public SnesVcExtractor(string decompressedRomPath, bool verbose = false)
         {
             this.verbose = verbose;
-            string snesDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SNES_DICTIONARY_CSV_PATH);
-            string snesSizePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SNES_SIZE_CSV_PATH);
+            string snesDictionaryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SnesDictionaryCsvPath);
+            string snesSizePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SnesSizeCsvPath);
 
-            snesDictionary = new RomNameDictionary(snesDictionaryPath);
-            snesSizeDictionary = new RomSizeDictionary(snesSizePath);
-            snesLoRomHeader = new byte[SNES_HEADER_LENGTH];
-            snesHiRomHeader = new byte[SNES_HEADER_LENGTH];
-            headerType = SnesHeaderType.NotDetermined;
-            romPosition = 0;
-            vcNamePosition = 0;
-            sdd1Offset = 0;
-            sdd1OffsetPosition = 0;
-            fileSize = 0;
-            fileSizePosition = 0;
-
+            this.snesDictionary = new RomNameDictionary(snesDictionaryPath);
+            this.snesSizeDictionary = new RomSizeDictionary(snesSizePath);
+            this.snesLoRomHeader = new byte[SnesHeaderLength];
+            this.snesHiRomHeader = new byte[SnesHeaderLength];
+            this.headerType = SnesHeaderType.NotDetermined;
+            this.romPosition = 0;
+            this.vcNamePosition = 0;
+            this.sdd1Offset = 0;
+            this.sdd1OffsetPosition = 0;
+            this.fileSize = 0;
+            this.fileSizePosition = 0;
             this.decompressedRomPath = decompressedRomPath;
         }
 
+        private enum SnesHeaderType
+        {
+            NotDetermined,
+            Unknown,
+            HiROM,
+            LoROM,
+        }
+
+        /// <summary>
+        /// Extracts the SNES rom.
+        /// </summary>
+        /// <returns>path to the extracted rom.</returns>
         public string ExtractRom()
         {
             // Quiet down the console during the extraction valid rom check
@@ -88,51 +104,51 @@ namespace WiiuVcExtractor.RomExtractors
             {
                 Console.SetOut(consoleOutputStream);
 
-                byte[] header = new byte[SNES_HEADER_LENGTH];
+                byte[] header = new byte[SnesHeaderLength];
 
-                switch (headerType)
+                switch (this.headerType)
                 {
                     case SnesHeaderType.HiROM:
-                        header = snesHiRomHeader;
+                        header = this.snesHiRomHeader;
                         break;
                     case SnesHeaderType.LoROM:
-                        header = snesLoRomHeader;
+                        header = this.snesLoRomHeader;
                         break;
                 }
 
                 // Attempt to get the game title from the dictionary
-                romName = snesDictionary.getRomName(vcName);
-                string romHeaderName = GetRomName(header);
+                this.romName = this.snesDictionary.GetRomName(this.vcName);
+                string romHeaderName = this.GetRomName(header);
 
-                if (String.IsNullOrEmpty(romName))
+                if (string.IsNullOrEmpty(this.romName))
                 {
-                    romName = romHeaderName;
+                    this.romName = romHeaderName;
 
                     // If a rom name could not be determined from the dictionary or rom, prompt the user
-                    if (String.IsNullOrEmpty(romName))
+                    if (string.IsNullOrEmpty(this.romName))
                     {
                         Console.WriteLine("Could not determine SNES rom name, please enter your desired filename:");
-                        romName = Console.ReadLine();
+                        this.romName = Console.ReadLine();
                     }
                 }
 
-                Console.WriteLine("Virtual Console Title: " + vcName);
-                Console.WriteLine("SNES Title: " + romName);
+                Console.WriteLine("Virtual Console Title: " + this.vcName);
+                Console.WriteLine("SNES Title: " + this.romName);
                 Console.WriteLine("SNES Header Name: " + romHeaderName);
 
-                extractedRomPath = romName + ".sfc";
+                this.extractedRomPath = this.romName + ".sfc";
 
                 Console.WriteLine("Getting size of rom...");
-                int romSize = GetRomSize(header[HEADER_ROM_SIZE_OFFSET]);
+                int romSize = this.GetRomSize(header[HeaderRomSizeOffset]);
 
-                if (verbose)
+                if (this.verbose)
                 {
                     Console.WriteLine("Rom size from header is {0} bytes.", romSize);
                 }
 
-                romSize = snesSizeDictionary.GetRomSize(romHeaderName, romSize);
+                romSize = this.snesSizeDictionary.GetRomSize(romHeaderName, romSize);
 
-                if (verbose)
+                if (this.verbose)
                 {
                     Console.WriteLine("Actual rom size is {0} bytes.", romSize);
                 }
@@ -144,133 +160,130 @@ namespace WiiuVcExtractor.RomExtractors
                 byte[] appendedData;
 
                 // Browse to the romPosition in the file
-                using (FileStream fs = new FileStream(decompressedRomPath, FileMode.Open, FileAccess.Read))
+                using (FileStream fs = new FileStream(this.decompressedRomPath, FileMode.Open, FileAccess.Read))
                 {
-                    using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
+                    using BinaryReader br = new BinaryReader(fs, new ASCIIEncoding());
+                    if (this.verbose)
                     {
-                        if (verbose)
-                        {
-                            Console.WriteLine("Browsing to 0x{0:X} in {1} to read in the rom data...", romPosition, decompressedRomPath);
-                        }
-
-                        br.BaseStream.Seek(romPosition, SeekOrigin.Begin);
-
-                        snesRomData = br.ReadBytes(romSize);
-                        // Read in all data until the end of the file after the rom data based on parsed file size
-                        appendedData = br.ReadBytes((int)(fileSize - (VC_HEADER_SIZE + romSize)));
+                        Console.WriteLine("Browsing to 0x{0:X} in {1} to read in the rom data...", this.romPosition, this.decompressedRomPath);
                     }
+
+                    br.BaseStream.Seek(this.romPosition, SeekOrigin.Begin);
+
+                    this.snesRomData = br.ReadBytes(romSize);
+
+                    // Read in all data until the end of the file after the rom data based on parsed file size
+                    appendedData = br.ReadBytes((int)(this.fileSize - (VcHeaderSize + romSize)));
                 }
 
-                SnesPcmExtractor pcmExtract = new SnesPcmExtractor(snesRomData, appendedData);
-                snesRomData = pcmExtract.ExtractPcmData();
+                SnesPcmExtractor pcmExtract = new SnesPcmExtractor(this.snesRomData, appendedData);
+                this.snesRomData = pcmExtract.ExtractPcmData();
 
-                if (sdd1DataOffset > 0)
+                if (this.sdd1DataOffset > 0)
                 {
                     Console.WriteLine("Rom uses S-DD1, recompressing S-DD1 data...");
-                    long appendedDataSdd1DataOffset = sdd1DataOffset - (VC_HEADER_SIZE + romSize);
-                    SnesSdd1Extractor sdd1Extract = new SnesSdd1Extractor(snesRomData, appendedData, appendedDataSdd1DataOffset);
-                    snesRomData = sdd1Extract.ExtractSdd1Data();
+                    long appendedDataSdd1DataOffset = this.sdd1DataOffset - (VcHeaderSize + romSize);
+                    SnesSdd1Extractor sdd1Extract = new SnesSdd1Extractor(this.snesRomData, appendedData, appendedDataSdd1DataOffset);
+                    this.snesRomData = sdd1Extract.ExtractSdd1Data();
                 }
                 else
                 {
                     Console.WriteLine("Rom does not appear to use S-DD1");
                 }
 
-                Console.WriteLine("Writing to " + extractedRomPath + "...");
+                Console.WriteLine("Writing to " + this.extractedRomPath + "...");
 
-                using (BinaryWriter bw = new BinaryWriter(File.Open(extractedRomPath, FileMode.Create)))
+                using (BinaryWriter bw = new BinaryWriter(File.Open(this.extractedRomPath, FileMode.Create)))
                 {
                     Console.WriteLine("Writing SNES rom data...");
-                    bw.Write(snesRomData);
+                    bw.Write(this.snesRomData);
                 }
 
-                Console.WriteLine("SNES rom has been created successfully at " + extractedRomPath);
+                Console.WriteLine("SNES rom has been created successfully at " + this.extractedRomPath);
             }
 
-            return extractedRomPath;
+            return this.extractedRomPath;
         }
 
+        /// <summary>
+        /// Whether the associated file is a valid SNES rom.
+        /// </summary>
+        /// <returns>true if valid, false otherwise.</returns>
         public bool IsValidRom()
         {
             Console.WriteLine("Checking if this is an SNES VC title...");
 
             // First check if this is a valid ELF file:
-            if (decompressedRomPath != null)
+            if (this.decompressedRomPath != null)
             {
-                Console.WriteLine("Checking " + decompressedRomPath + "...");
-                if (!File.Exists(decompressedRomPath))
+                Console.WriteLine("Checking " + this.decompressedRomPath + "...");
+                if (!File.Exists(this.decompressedRomPath))
                 {
-                    Console.WriteLine("Could not find decompressed rom at " + decompressedRomPath);
+                    Console.WriteLine("Could not find decompressed rom at " + this.decompressedRomPath);
                     return false;
                 }
 
-                byte[] headerBuffer = new byte[16];
-
-                if (verbose)
+                if (this.verbose)
                 {
                     Console.WriteLine("Checking for the SNES WUP header");
                 }
 
                 // Search the decompressed RPX file for the WUP-F specification before the SNES rom's data
-                using (FileStream fs = new FileStream(decompressedRomPath, FileMode.Open, FileAccess.Read))
+                using FileStream fs = new FileStream(this.decompressedRomPath, FileMode.Open, FileAccess.Read);
+                using BinaryReader br = new BinaryReader(fs, new ASCIIEncoding());
+                while (br.BaseStream.Position != br.BaseStream.Length)
                 {
-                    using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
+                    byte[] buffer = br.ReadBytes(16);
+
+                    if (buffer[4] == SnesWupHeaderCheck[0] &&
+                        buffer[5] == SnesWupHeaderCheck[1] &&
+                        buffer[6] == SnesWupHeaderCheck[2] &&
+                        buffer[7] == SnesWupHeaderCheck[3] &&
+                        buffer[8] == SnesWupHeaderCheck[4])
                     {
-                        while (br.BaseStream.Position != br.BaseStream.Length)
+                        // The buffer matches the expected WUP-J string, make sure the last three chars are
+                        // valid and it is padded
+                        if (buffer[9] >= AsciiZero && buffer[9] <= AsciiZ &&
+                            buffer[10] >= AsciiZero && buffer[10] <= AsciiZ &&
+                            buffer[11] >= AsciiZero && buffer[11] <= AsciiZ &&
+                            buffer[12] == 0x00 &&
+                            buffer[13] == 0x00 &&
+                            buffer[14] == 0x00 &&
+                            buffer[15] == 0x00)
                         {
-                            byte[] buffer = br.ReadBytes(16);
+                            this.romPosition = br.BaseStream.Position;
+                            this.fileSizePosition = this.romPosition - 44;   // 0x04 in the header
+                            this.sdd1OffsetPosition = this.romPosition - 24; // 0x18 in the header
+                            this.vcNamePosition = this.romPosition - 12;     // 0x24 in the header
+                            this.vcName = Encoding.ASCII.GetString(buffer, 4, 8);
 
-                            if (buffer[4] == SNES_WUP_HEADER_CHECK[0] &&
-                                buffer[5] == SNES_WUP_HEADER_CHECK[1] &&
-                                buffer[6] == SNES_WUP_HEADER_CHECK[2] &&
-                                buffer[7] == SNES_WUP_HEADER_CHECK[3] &&
-                                buffer[8] == SNES_WUP_HEADER_CHECK[4])
+                            // Seek back 44 bytes to gather the fileSize position
+                            br.BaseStream.Seek(this.fileSizePosition, SeekOrigin.Begin);
+                            this.fileSize = br.ReadUInt32LE();
+
+                            // Seek back 24 bytes to gather the S-DD1 data offset
+                            br.BaseStream.Seek(this.sdd1OffsetPosition, SeekOrigin.Begin);
+                            this.sdd1Offset = br.ReadUInt32LE();
+
+                            // Seek to the S-DD1 data offset and read the S-DD1 header (if any)
+                            br.BaseStream.Seek(this.romPosition - VcHeaderSize + this.sdd1Offset, SeekOrigin.Begin);
+                            this.sdd1DataOffset = br.ReadUInt32LE();
+
+                            Console.WriteLine("File size is 0x{0:X}", this.fileSize);
+                            Console.WriteLine("Virtual Console Title offset is 0x{0:X}", this.vcNamePosition);
+                            Console.WriteLine("S-DD1 offset is 0x{0:X}", this.sdd1Offset);
+                            Console.WriteLine("S-DD1 data offset is 0x{0:X}", this.sdd1DataOffset);
+
+                            this.DetermineHeaderType();
+
+                            if (this.headerType == SnesHeaderType.HiROM || this.headerType == SnesHeaderType.LoROM)
                             {
-                                // The buffer matches the expected WUP-J string, make sure the last three chars are
-                                // valid and it is padded
-                                if ((buffer[9]  >= ASCII_ZERO && buffer[9]  <= ASCII_Z) &&
-                                    (buffer[10] >= ASCII_ZERO && buffer[10] <= ASCII_Z) &&
-                                    (buffer[11] >= ASCII_ZERO && buffer[11] <= ASCII_Z) &&
-                                    buffer[12] == 0x00 &&
-                                    buffer[13] == 0x00 &&
-                                    buffer[14] == 0x00 &&
-                                    buffer[15] == 0x00)
-                                {
-                                    romPosition = br.BaseStream.Position;
-                                    fileSizePosition = romPosition - 44;   // 0x04 in the header
-                                    sdd1OffsetPosition = romPosition - 24; // 0x18 in the header
-                                    vcNamePosition = romPosition - 12;     // 0x24 in the header
-                                    vcName = Encoding.ASCII.GetString(buffer, 4, 8);
-
-                                    // Seek back 44 bytes to gather the fileSize position
-                                    br.BaseStream.Seek(fileSizePosition, SeekOrigin.Begin);
-                                    fileSize = br.ReadUInt32LE();
-
-                                    // Seek back 24 bytes to gather the S-DD1 data offset
-                                    br.BaseStream.Seek(sdd1OffsetPosition, SeekOrigin.Begin);
-                                    sdd1Offset = br.ReadUInt32LE();
-
-                                    // Seek to the S-DD1 data offset and read the S-DD1 header (if any)
-                                    br.BaseStream.Seek(romPosition - VC_HEADER_SIZE + sdd1Offset, SeekOrigin.Begin);
-                                    sdd1DataOffset = br.ReadUInt32LE();
-
-                                    Console.WriteLine("File size is 0x{0:X}", fileSize);
-                                    Console.WriteLine("S-DD1 offset is 0x{0:X}", sdd1Offset);
-                                    Console.WriteLine("S-DD1 data offset is 0x{0:X}", sdd1DataOffset);
-
-                                    DetermineHeaderType();
-
-                                    if (headerType == SnesHeaderType.HiROM || headerType == SnesHeaderType.LoROM)
-                                    {
-                                        Console.WriteLine("SNES Rom Detected!");
-                                        return true;
-                                    }
-                                }
+                                Console.WriteLine("SNES Rom Detected!");
+                                return true;
                             }
                         }
                     }
                 }
-
             }
 
             Console.WriteLine("Not an SNES VC Title");
@@ -280,115 +293,118 @@ namespace WiiuVcExtractor.RomExtractors
 
         private void DetermineHeaderType()
         {
-            if (verbose)
+            if (this.verbose)
             {
                 Console.WriteLine("Determining SNES Rom header type (LoROM or HiROM)");
             }
 
             // Read in the headers
-            using (FileStream fs = new FileStream(decompressedRomPath, FileMode.Open, FileAccess.Read))
+            using (FileStream fs = new FileStream(this.decompressedRomPath, FileMode.Open, FileAccess.Read))
             {
-                using (BinaryReader br = new BinaryReader(fs, new ASCIIEncoding()))
+                using BinaryReader br = new BinaryReader(fs, new ASCIIEncoding());
+                if (this.verbose)
                 {
-                    if (verbose)
-                    {
-                        Console.WriteLine("Seeking to 0x{0:X} to check for possible LoROM header.", romPosition + SNES_LOROM_HEADER_OFFSET);
-                    }
-
-                    // Seek to the lorom header location and read the lorom data
-                    br.BaseStream.Seek(romPosition + SNES_LOROM_HEADER_OFFSET, SeekOrigin.Begin);
-                    snesLoRomHeader = br.ReadBytes(SNES_HEADER_LENGTH);
-
-                    if (verbose)
-                    {
-                        Console.WriteLine("Seeking to 0x{0:X} to check for possible HiROM header.", romPosition + SNES_HIROM_HEADER_OFFSET);
-                    }
-
-                    // Seek to the hirom header location and read the hirom data
-                    br.BaseStream.Seek(romPosition + SNES_HIROM_HEADER_OFFSET, SeekOrigin.Begin);
-                    snesHiRomHeader = br.ReadBytes(SNES_HEADER_LENGTH);
+                    Console.WriteLine("Seeking to 0x{0:X} to check for possible LoROM header.", this.romPosition + SnesLoRomHeaderOffset);
                 }
+
+                // Seek to the lorom header location and read the lorom data
+                br.BaseStream.Seek(this.romPosition + SnesLoRomHeaderOffset, SeekOrigin.Begin);
+                this.snesLoRomHeader = br.ReadBytes(SnesHeaderLength);
+
+                if (this.verbose)
+                {
+                    Console.WriteLine("Seeking to 0x{0:X} to check for possible HiROM header.", this.romPosition + SnesHiRomHeaderOffset);
+                }
+
+                // Seek to the hirom header location and read the hirom data
+                br.BaseStream.Seek(this.romPosition + SnesHiRomHeaderOffset, SeekOrigin.Begin);
+                this.snesHiRomHeader = br.ReadBytes(SnesHeaderLength);
             }
 
             // Check each header to verify which is correct
-            if (IsValidHeader(snesLoRomHeader))
+            if (this.IsValidHeader(this.snesLoRomHeader))
             {
-                if (IsValidHeader(snesHiRomHeader))
+                if (this.IsValidHeader(this.snesHiRomHeader))
                 {
-                    if (verbose)
+                    if (this.verbose)
                     {
                         Console.WriteLine("Could not determine header type since both HiROM and LoROM headers were valid, defaulting to LoROM.");
                     }
+
                     // Both appear to be valid, use LoROM by default
-                    headerType = SnesHeaderType.LoROM;
+                    this.headerType = SnesHeaderType.LoROM;
                 }
                 else
                 {
-                    headerType = SnesHeaderType.LoROM;
+                    this.headerType = SnesHeaderType.LoROM;
                 }
             }
-            else if (IsValidHeader(snesHiRomHeader))
+            else if (this.IsValidHeader(this.snesHiRomHeader))
             {
-                headerType = SnesHeaderType.HiROM;
+                this.headerType = SnesHeaderType.HiROM;
             }
 
-            if (verbose)
+            if (this.verbose)
             {
-                Console.WriteLine("SNES header type is " + headerType.ToString());
+                Console.WriteLine("SNES header type is " + this.headerType.ToString());
             }
         }
 
         private bool IsValidHeader(byte[] headerData)
         {
-            if (verbose)
+            if (this.verbose)
             {
                 Console.WriteLine("Checking potential header: {0}", BitConverter.ToString(headerData));
                 Console.WriteLine("Checking for valid SNES header title");
             }
+
             // Ensure that the title piece of the header is valid (space or higher ASCII value)
-            for (int i = 0; i < HEADER_TITLE_LENGTH; i++)
+            for (int i = 0; i < HeaderTitleLength; i++)
             {
-                if (headerData[i] < ASCII_SPACE)
+                if (headerData[i] < AsciiSpace)
                 {
-                    if (verbose)
+                    if (this.verbose)
                     {
                         Console.WriteLine("Header is not valid");
                     }
+
                     return false;
                 }
-            }     
+            }
 
-            if (verbose)
+            if (this.verbose)
             {
-                Console.WriteLine("Title: {0}", GetRomName(headerData));
-                Console.WriteLine("Ensure header rom size 0x{0:X} is valid.", headerData[HEADER_ROM_SIZE_OFFSET]);
+                Console.WriteLine("Title: {0}", this.GetRomName(headerData));
+                Console.WriteLine("Ensure header rom size 0x{0:X} is valid.", headerData[HeaderRomSizeOffset]);
             }
 
             // Ensure the rom size of the header is valid
-            if (!VALID_ROM_SIZES.Contains(headerData[HEADER_ROM_SIZE_OFFSET]))
+            if (!ValidRomSizes.Contains(headerData[HeaderRomSizeOffset]))
             {
-                if (verbose)
+                if (this.verbose)
                 {
-                    Console.WriteLine("Header rom size 0x{0:X} is invalid.", headerData[HEADER_ROM_SIZE_OFFSET]);
+                    Console.WriteLine("Header rom size 0x{0:X} is invalid.", headerData[HeaderRomSizeOffset]);
                 }
+
                 return false;
             }
 
             // Ensure the checksum of the header is valid
-            ushort headerChecksum = BitConverter.ToUInt16(headerData, HEADER_CHECKSUM_OFFSET);
-            ushort headerChecksumComplement = BitConverter.ToUInt16(headerData, HEADER_CHECKSUM_COMPLEMENT_OFFSET);
+            ushort headerChecksum = BitConverter.ToUInt16(headerData, HeaderChecksumOffset);
+            ushort headerChecksumComplement = BitConverter.ToUInt16(headerData, HeaderChecksumComplementOffset);
 
-            if (verbose)
+            if (this.verbose)
             {
                 Console.WriteLine("Ensure header checksum 0x{0:X} is valid.", headerChecksum);
             }
 
-            if ((ushort)~(headerChecksum) != headerChecksumComplement)
+            if ((ushort)~headerChecksum != headerChecksumComplement)
             {
-                if (verbose)
+                if (this.verbose)
                 {
                     Console.WriteLine("Header rom checksum is invalid. Checksum: 0x{0:X} Compliment: 0x{1:X}", headerChecksum, headerChecksumComplement);
                 }
+
                 return false;
             }
 
@@ -397,27 +413,27 @@ namespace WiiuVcExtractor.RomExtractors
 
         private int GetRomSize(byte romSize)
         {
-            if (VALID_ROM_SIZES.Contains(romSize))
+            if (ValidRomSizes.Contains(romSize))
             {
-                return (ROM_SIZE_BASE << romSize);
+                return RomSizeBase << romSize;
             }
 
-            if (verbose)
+            if (this.verbose)
             {
                 Console.WriteLine("Invalid rom size 0x{0:X} was provided.", romSize);
             }
-            
+
             return 0x00;
         }
 
         private string GetRomName(byte[] header)
         {
-            if (header.Length >= HEADER_TITLE_LENGTH)
+            if (header.Length >= HeaderTitleLength)
             {
-                return Encoding.ASCII.GetString(header, HEADER_TITLE_OFFSET, HEADER_TITLE_LENGTH);
+                return Encoding.ASCII.GetString(header, HeaderTitleOffset, HeaderTitleLength);
             }
 
-            return "";
+            return string.Empty;
         }
     }
 }
