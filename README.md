@@ -16,6 +16,8 @@ This currently only supports extracting GBA, DS, NES, FDS, PCE, and SNES roms. N
 1. Download the [latest OSX release zip file](https://github.com/wheatevo/wiiu-vc-extractor/releases/latest/download/wiiu-vc-extractor-osx-x64.zip)
 2. Extract it to your local computer
 
+> If you are on an M1 Mac, you may need to install [Rosetta](https://support.apple.com/en-gb/HT211861) with `softwareupdate --install-rosetta` before the application will function. If Rosetta is not installed, you will receive a `zsh: bad CPU type in executable` error.
+
 ## Basic Usage
 `wiiuvcextractor <dump_file>`
 
