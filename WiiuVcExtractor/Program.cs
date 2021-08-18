@@ -11,7 +11,7 @@
     /// </summary>
     public class Program
     {
-        private const string WiiUVcExtractorVersion = "2.0.0";
+        private const string WiiUVcExtractorVersion = "2.0.1";
 
         /// <summary>
         /// Prints usage information.

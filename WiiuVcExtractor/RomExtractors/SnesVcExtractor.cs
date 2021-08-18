@@ -267,7 +267,22 @@
 
                             // Seek to the S-DD1 data offset and read the S-DD1 header (if any)
                             br.BaseStream.Seek(this.romPosition - VcHeaderSize + this.sdd1Offset, SeekOrigin.Begin);
-                            this.sdd1DataOffset = br.ReadUInt32LE();
+
+                            try
+                            {
+                                this.sdd1DataOffset = br.ReadUInt32LE();
+                            }
+                            catch (Exception ex)
+                            {
+                                if (this.verbose)
+                                {
+                                    Console.WriteLine(
+                                        "Could not read the S-DD1 data offset, setting the offset to 0 to skip decompression. Error details: {0}",
+                                        ex.Message);
+                                }
+
+                                this.sdd1DataOffset = 0;
+                            }
 
                             Console.WriteLine("File size is 0x{0:X}", this.fileSize);
                             Console.WriteLine("Virtual Console Title offset is 0x{0:X}", this.vcNamePosition);
